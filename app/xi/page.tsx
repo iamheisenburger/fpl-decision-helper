@@ -36,9 +36,9 @@ function calculateRAEV(
   // P90 naturally controls probability based on xMins confidence
   const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
 
-  // EO shield bonus: 0.1 EV per 15% EO for high-EO players (>50%)
-  // Example: 60% EO = (60/15) * 0.1 = 0.4, 75% EO = (75/15) * 0.1 = 0.5
-  const eoShield = player.eo > 50 ? (player.eo / 15) * settings.xiEoRate : 0;
+  // EO shield bonus: 0.1 EV per 15% EO (applied to ALL players proportionally)
+  // Example: 5.6% EO = (5.6/15) * 0.1 = 0.037, 64.4% EO = (64.4/15) * 0.1 = 0.43
+  const eoShield = (player.eo / 15) * settings.xiEoRate;
 
   // xMins floor penalty: penalize players with risky minutes
   const xMinsPenalty = player.xMins < settings.xMinsThreshold ? settings.xMinsPenalty : 0;

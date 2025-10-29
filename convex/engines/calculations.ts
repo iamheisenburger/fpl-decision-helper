@@ -108,15 +108,12 @@ export function calculateRAEV(
   const rMinsSurcharge = 0.5 * Math.max(0, templateEv95P90 - playerUpside);
   raev -= rMinsSurcharge;
 
-  // EO shield bonus: reward if player has higher EO than template
-  const eoGap = player.eo - templateEo;
-  if (eoGap > 0) {
-    const shieldBonus = Math.min(
-      settings.xiEoCap,
-      (eoGap / 15) * settings.xiEoRate
-    );
-    raev += shieldBonus;
-  }
+  // EO shield bonus: 0.1 EV per 15% EO (applied to ALL players proportionally)
+  const shieldBonus = Math.min(
+    settings.xiEoCap,
+    (player.eo / 15) * settings.xiEoRate
+  );
+  raev += shieldBonus;
 
   return raev;
 }
