@@ -12,7 +12,9 @@
       "Bash(git push:*)",
       "Bash(git pull:*)",
       "Bash(git rm:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(npx convex deploy:*)",
+      "Bash(npx convex dev:*)"
     ],
     "deny": [],
     "ask": []
