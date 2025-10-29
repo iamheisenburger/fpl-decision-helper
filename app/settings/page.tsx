@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function SettingsPage() {
   const settings = useQuery(api.userSettings.getSettings);
@@ -18,7 +18,6 @@ export default function SettingsPage() {
     captaincyEoCap: 1.0,
     xiEoRate: 0.1,
     xiEoCap: 1.0,
-    rminsWeight: 1.0,
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
     weeklyBleedBudget: 0.8,
@@ -27,21 +26,22 @@ export default function SettingsPage() {
   });
 
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    if (settings) {
+    if (settings && !hasInitialized.current) {
       setFormData({
         captaincyEoRate: settings.captaincyEoRate,
         captaincyEoCap: settings.captaincyEoCap,
         xiEoRate: settings.xiEoRate,
         xiEoCap: settings.xiEoCap,
-        rminsWeight: settings.rminsWeight,
         xMinsThreshold: settings.xMinsThreshold,
         xMinsPenalty: settings.xMinsPenalty,
         weeklyBleedBudget: settings.weeklyBleedBudget,
         defaultHoldLength: settings.defaultHoldLength,
         transferGainThreshold: settings.transferGainThreshold,
       });
+      hasInitialized.current = true;
     }
   }, [settings]);
 
@@ -65,12 +65,24 @@ export default function SettingsPage() {
     }
   };
 
+  // Show loading state while settings are being fetched
+  if (settings === undefined) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Risk Profile Settings</h1>
+          <p className="text-muted-foreground">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold mb-2">Risk Profile Settings</h1>
         <p className="text-muted-foreground">
-          Configure your EO tolerance, rMins weighting, and bleed budget to match your risk profile.
+          Configure your EO tolerance and bleed budget to match your risk profile.
         </p>
       </div>
 
@@ -164,35 +176,6 @@ export default function SettingsPage() {
               />
               <p className="text-xs text-muted-foreground">
                 Default: 1.0 (maximum tolerance cap)
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* rMins Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>rMins (Realized Minutes) Settings</CardTitle>
-            <CardDescription>
-              Weight for EV95 upside surcharge
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="rminsWeight">
-                rMins Weight
-              </Label>
-              <Input
-                id="rminsWeight"
-                type="number"
-                step="0.1"
-                value={formData.rminsWeight}
-                onChange={(e) =>
-                  setFormData({ ...formData, rminsWeight: parseFloat(e.target.value) })
-                }
-              />
-              <p className="text-xs text-muted-foreground">
-                Default: 1.0 (ceiling weight for EV95×P90 calculations - 1.0 = full expected value)
               </p>
             </div>
           </CardContent>

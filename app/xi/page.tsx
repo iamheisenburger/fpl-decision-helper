@@ -26,7 +26,6 @@ function calculateRAEV(
   },
   settings: {
     xiEoRate: number;
-    rminsWeight: number;
     xMinsThreshold: number;
     xMinsPenalty: number;
   }
@@ -34,7 +33,8 @@ function calculateRAEV(
   const p90 = calculateP90(player.xMins);
 
   // Ceiling bonus: reward EV95 upside weighted by minutes confidence (P90)
-  const ceilingBonus = (player.ev95 - player.ev) * p90 * settings.rminsWeight;
+  // Fixed 0.5 weight, capped at 1.0 EV max
+  const ceilingBonus = Math.min((player.ev95 - player.ev) * p90 * 0.5, 1.0);
 
   // EO shield bonus: 0.1 EV per 15% EO for high-EO players (>50%)
   // Example: 60% EO = (60/15) * 0.1 = 0.4, 75% EO = (75/15) * 0.1 = 0.5
@@ -77,7 +77,6 @@ export default function XIPage() {
   // Default settings fallback
   const settings = settingsData || {
     xiEoRate: 0.1,
-    rminsWeight: 1.0,
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
     weeklyBleedBudget: 0.8,

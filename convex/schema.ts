@@ -48,9 +48,6 @@ export default defineSchema({
     xiEoRate: v.number(), // default: 0.1 EV per 15% EO
     xiEoCap: v.number(), // default: 1.0 EV
 
-    // rMins settings
-    rminsWeight: v.number(), // default: 0.5
-
     // xMins penalty settings
     xMinsThreshold: v.number(), // default: 70 minutes
     xMinsPenalty: v.number(), // default: 0.3 EV

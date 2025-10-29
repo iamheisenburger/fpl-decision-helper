@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-// Import the calculation functions directly
+// P90 confidence thresholds
 function calculateP90(xMins: number): number {
   if (xMins >= 88) return 1.0;
   if (xMins >= 85) return 0.8;
@@ -16,22 +16,18 @@ function calculateP90(xMins: number): number {
   return 0.0;
 }
 
+// Calculate EO tolerance
 function calculateTolerance(eoGap: number, settings: { captaincyEoRate: number; captaincyEoCap: number }): number {
   const tolerance = (eoGap / 10) * settings.captaincyEoRate;
   return Math.min(settings.captaincyEoCap, tolerance);
 }
 
-function calculateRMinsAdjustment(
-  highEO: { ev95: number; xMins: number },
-  alt: { ev95: number; xMins: number },
-  rminsWeight: number
-): number {
-  const highEOUpside = highEO.ev95 * calculateP90(highEO.xMins);
-  const altUpside = alt.ev95 * calculateP90(alt.xMins);
-  // Bidirectional: positive if highEO has better ceiling (harder to chase)
-  // negative if alt has better ceiling (easier to chase)
-  const adjustment = rminsWeight * (highEOUpside - altUpside);
-  return adjustment;
+// Calculate Total Score: EV + capped ceiling bonus
+function calculateTotalScore(player: { ev: number; ev95: number; xMins: number }): number {
+  const p90 = calculateP90(player.xMins);
+  const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5; // Fixed 0.5 weight
+  const cappedBonus = Math.min(ceilingBonus, 0.5); // Capped at 0.5 EV
+  return player.ev + cappedBonus;
 }
 
 export default function CaptainPage() {
@@ -41,7 +37,6 @@ export default function CaptainPage() {
   const settings = settingsData || {
     captaincyEoRate: 0.1,
     captaincyEoCap: 1.0,
-    rminsWeight: 1.0,
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
     weeklyBleedBudget: 0.8,
@@ -92,57 +87,58 @@ export default function CaptainPage() {
     const highEO = isP1HighEO ? p1 : p2;
     const alt = isP1HighEO ? p2 : p1;
 
-    // Calculate
+    // Calculate Total Scores independently
+    const highEOTotalScore = calculateTotalScore(highEO);
+    const altTotalScore = calculateTotalScore(alt);
+
+    // Calculate advantage gap
+    const advantageGap = altTotalScore - highEOTotalScore;
+
+    // Calculate EO tolerance
     const eoGap = highEO.eo - alt.eo;
     const tolerance = calculateTolerance(eoGap, settings);
+
+    // Decision: Shield if advantage gap is within tolerance
+    const pickHighEO = advantageGap <= tolerance;
+    const recommendedPlayer = pickHighEO ? highEO : alt;
+
+    // Captain bleed: EV sacrificed when shielding high-EO
     const evGapRaw = alt.ev - highEO.ev;
+    const captainBleed = pickHighEO ? Math.max(0, evGapRaw) : 0;
+
+    // P90 values for display
     const p90HighEO = calculateP90(highEO.xMins);
     const p90Alt = calculateP90(alt.xMins);
-    const rMinsAdjustment = calculateRMinsAdjustment(highEO, alt, settings.rminsWeight);
-    const xMinsPenalty = alt.xMins < settings.xMinsThreshold ? settings.xMinsPenalty : 0;
-    // FIXED: Subtract rMinsAdjustment (not add) - when alt has better ceiling, gap should INCREASE
-    const evGapEffective = evGapRaw - rMinsAdjustment + xMinsPenalty;
 
-    // Decision
-    const pickHighEO = evGapEffective <= tolerance;
-    const recommendedPlayer = pickHighEO ? highEO : alt;
-    // FIXED: Captain bleed is the ACTUAL EV difference (not effective gap)
-    const captainBleed = pickHighEO ? Math.max(0, evGapRaw) : 0;
+    // Calculate ceiling bonuses for display
+    const highEOCeilingBonus = Math.min((highEO.ev95 - highEO.ev) * p90HighEO * 0.5, 0.5);
+    const altCeilingBonus = Math.min((alt.ev95 - alt.ev) * p90Alt * 0.5, 0.5);
 
     // Reasoning
     let reasoning = "";
     if (pickHighEO) {
-      reasoning = `EV gap effective (${evGapEffective.toFixed(
+      reasoning = `Advantage gap (${advantageGap.toFixed(
         2
-      )}) ≤ tolerance (${tolerance.toFixed(2)}) → Shield ${
+      )} EV) ≤ tolerance (${tolerance.toFixed(2)} EV) → Shield ${
         recommendedPlayer.name
       } (${recommendedPlayer.eo.toFixed(1)}% EO)`;
     } else {
-      reasoning = `EV gap effective (${evGapEffective.toFixed(
+      reasoning = `Advantage gap (${advantageGap.toFixed(
         2
-      )}) > tolerance (${tolerance.toFixed(2)}) → Chase ${
+      )} EV) > tolerance (${tolerance.toFixed(2)} EV) → Chase ${
         recommendedPlayer.name
       } (${recommendedPlayer.ev.toFixed(1)} EV)`;
-    }
-
-    if (Math.abs(rMinsAdjustment) > 0.1) {
-      reasoning += ` | rMins adjustment: ${rMinsAdjustment > 0 ? '+' : ''}${rMinsAdjustment.toFixed(2)} EV`;
-    }
-    if (xMinsPenalty > 0) {
-      reasoning += ` | xMins penalty: ${xMinsPenalty.toFixed(2)} EV`;
     }
 
     setAnalysis({
       recommendedPlayer: recommendedPlayer.name,
       pickHighEO,
-      highEOPlayer: { ...highEO, p90: p90HighEO },
-      altPlayer: { ...alt, p90: p90Alt },
+      highEOPlayer: { ...highEO, p90: p90HighEO, totalScore: highEOTotalScore, ceilingBonus: highEOCeilingBonus },
+      altPlayer: { ...alt, p90: p90Alt, totalScore: altTotalScore, ceilingBonus: altCeilingBonus },
       eoGap,
       tolerance,
       evGapRaw,
-      rMinsAdjustment,
-      xMinsPenalty,
-      evGapEffective,
+      advantageGap,
       captainBleed,
       reasoning,
     });
@@ -429,6 +425,52 @@ export default function CaptainPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 text-sm">
+                  <div className="space-y-2">
+                    <div className="font-semibold text-green-400">
+                      {analysis.highEOPlayer.name} Total Score:
+                    </div>
+                    <div className="pl-4 space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Base EV:</span>
+                        <span>{analysis.highEOPlayer.ev.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Ceiling Bonus:</span>
+                        <span className="text-green-400">+{analysis.highEOPlayer.ceilingBonus.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-medium">
+                        <span>Total:</span>
+                        <span>{analysis.highEOPlayer.totalScore.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="font-semibold text-blue-400">
+                      {analysis.altPlayer.name} Total Score:
+                    </div>
+                    <div className="pl-4 space-y-1 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Base EV:</span>
+                        <span>{analysis.altPlayer.ev.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Ceiling Bonus:</span>
+                        <span className="text-green-400">+{analysis.altPlayer.ceilingBonus.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-medium">
+                        <span>Total:</span>
+                        <span>{analysis.altPlayer.totalScore.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <hr className="border-border" />
+
+                  <div className="flex justify-between font-semibold">
+                    <span>Advantage Gap:</span>
+                    <span>{analysis.advantageGap.toFixed(2)} EV</span>
+                  </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">EO Gap:</span>
                     <span className="font-medium">
@@ -441,54 +483,24 @@ export default function CaptainPage() {
                       {analysis.tolerance.toFixed(2)} EV
                     </span>
                   </div>
-                  <hr className="border-border" />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">EV Gap (Raw):</span>
-                    <span className="font-medium">
-                      {analysis.evGapRaw.toFixed(2)} EV
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      rMins Adjustment:
-                    </span>
-                    <span className={`font-medium ${analysis.rMinsAdjustment > 0 ? 'text-amber-400' : 'text-green-400'}`}>
-                      {analysis.rMinsAdjustment > 0 ? '+' : ''}{analysis.rMinsAdjustment.toFixed(2)} EV
-                    </span>
-                  </div>
-                  {analysis.xMinsPenalty > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">
-                        xMins Penalty:
-                      </span>
-                      <span className="font-medium text-amber-400">
-                        +{analysis.xMinsPenalty.toFixed(2)} EV
-                      </span>
-                    </div>
-                  )}
-                  <hr className="border-border" />
-                  <div className="flex justify-between font-semibold">
-                    <span>EV Gap (Effective):</span>
-                    <span>{analysis.evGapEffective.toFixed(2)} EV</span>
-                  </div>
                 </div>
 
                 <div
                   className={`mt-4 p-3 rounded-md ${
-                    analysis.evGapEffective <= analysis.tolerance
+                    analysis.advantageGap <= analysis.tolerance
                       ? "bg-green-500/10 border border-green-500/20"
                       : "bg-blue-500/10 border border-blue-500/20"
                   }`}
                 >
                   <p className="text-xs font-medium text-center">
-                    {analysis.evGapEffective <= analysis.tolerance ? (
+                    {analysis.advantageGap <= analysis.tolerance ? (
                       <>
-                        ✓ Effective gap ({analysis.evGapEffective.toFixed(2)}) ≤
+                        ✓ Advantage gap ({analysis.advantageGap.toFixed(2)}) ≤
                         Tolerance ({analysis.tolerance.toFixed(2)})
                       </>
                     ) : (
                       <>
-                        ✗ Effective gap ({analysis.evGapEffective.toFixed(2)}) &gt;
+                        ✗ Advantage gap ({analysis.advantageGap.toFixed(2)}) &gt;
                         Tolerance ({analysis.tolerance.toFixed(2)})
                       </>
                     )}

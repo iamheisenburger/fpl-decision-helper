@@ -3,21 +3,17 @@ import { v } from "convex/values";
 import {
   calculateP90,
   calculateTolerance,
-  calculateRMinsSurcharge,
-  calculateEVGapEffective,
-  calculateXMinsPenalty,
+  calculateTotalScore,
 } from "./calculations";
 
 /**
  * Captaincy Decision Engine
  *
- * Takes two player candidates and returns a recommendation based on:
- * 1. EO tolerance (0.1 EV per 10% EO gap, capped at 1.0 EV)
- * 2. Raw EV gap
- * 3. rMins surcharge (if high-EO player has less upside)
- * 4. xMins penalty (if candidate has risky minutes)
- *
- * Decision: Pick high-EO if effective_gap ≤ tolerance, else pick higher-EV
+ * Simple, predictable logic:
+ * 1. Calculate Total Score for each player: EV + min((EV95-EV)×P90×0.5, 0.5)
+ * 2. Calculate advantage gap: Alt Total - HighEO Total
+ * 3. Calculate EO tolerance: min((EO gap / 10) × 0.1, 1.0)
+ * 4. Decision: Shield if advantage gap ≤ tolerance, else chase
  */
 
 export const analyzeCaptaincy = query({
@@ -71,7 +67,23 @@ export const analyzeCaptaincy = query({
       ? { player: player2, gw: gw2, id: args.player2Id }
       : { player: player1, gw: gw1, id: args.player1Id };
 
-    // Calculate EO gap and tolerance
+    // Calculate Total Scores independently
+    const highEOTotalScore = calculateTotalScore({
+      ev: highEO.gw.ev,
+      ev95: highEO.gw.ev95,
+      xMins: highEO.gw.xMins,
+    });
+
+    const altTotalScore = calculateTotalScore({
+      ev: alt.gw.ev,
+      ev95: alt.gw.ev95,
+      xMins: alt.gw.xMins,
+    });
+
+    // Calculate advantage gap
+    const advantageGap = altTotalScore - highEOTotalScore;
+
+    // Calculate EO tolerance
     const eoGap = highEO.gw.eo - alt.gw.eo;
     const tolerance = calculateTolerance(
       eoGap,
@@ -79,66 +91,44 @@ export const analyzeCaptaincy = query({
       settings.captaincyEoCap
     );
 
-    // Calculate raw EV gap (alt - highEO, positive means alt is better)
-    const evGapRaw = alt.gw.ev - highEO.gw.ev;
-
-    // Calculate P90 values
+    // Calculate P90 values for display
     const p90HighEO = calculateP90(highEO.gw.xMins);
     const p90Alt = calculateP90(alt.gw.xMins);
 
-    // Calculate rMins surcharge
-    // This penalizes switching away from high-EO if they have more upside
-    const rMinsSurcharge = calculateRMinsSurcharge(
-      { ev95: highEO.gw.ev95, xMins: highEO.gw.xMins },
-      { ev95: alt.gw.ev95, xMins: alt.gw.xMins },
-      settings.rminsWeight
+    // Calculate ceiling bonuses for display
+    const highEOCeilingBonus = Math.min(
+      (highEO.gw.ev95 - highEO.gw.ev) * p90HighEO * 0.5,
+      0.5
+    );
+    const altCeilingBonus = Math.min(
+      (alt.gw.ev95 - alt.gw.ev) * p90Alt * 0.5,
+      0.5
     );
 
-    // Calculate xMins penalty for alt (if risky minutes)
-    const xMinsPenalty = calculateXMinsPenalty(
-      alt.gw.xMins,
-      settings.xMinsThreshold,
-      settings.xMinsPenalty
-    );
-
-    // Calculate effective EV gap
-    const evGapEffective = calculateEVGapEffective(
-      evGapRaw,
-      rMinsSurcharge,
-      xMinsPenalty
-    );
-
-    // Make decision
-    const pickHighEO = evGapEffective <= tolerance;
+    // Make decision: Shield if advantage gap is within tolerance
+    const pickHighEO = advantageGap <= tolerance;
     const recommendedId = pickHighEO ? highEO.id : alt.id;
     const recommendedPlayer = pickHighEO ? highEO.player : alt.player;
     const recommendedGw = pickHighEO ? highEO.gw : alt.gw;
 
-    // Calculate captain bleed (EV lost by picking high-EO when alt is better)
-    const captainBleed = pickHighEO ? Math.max(0, evGapEffective) : 0;
+    // Calculate captain bleed (actual EV difference when shielding)
+    const evGapRaw = alt.gw.ev - highEO.gw.ev;
+    const captainBleed = pickHighEO ? Math.max(0, evGapRaw) : 0;
 
     // Generate reasoning
     let reasoning = "";
     if (pickHighEO) {
-      reasoning = `EV gap effective (${evGapEffective.toFixed(
+      reasoning = `Advantage gap (${advantageGap.toFixed(
         2
-      )}) ≤ tolerance (${tolerance.toFixed(
+      )} EV) ≤ tolerance (${tolerance.toFixed(
         2
-      )}) → Shield ${recommendedPlayer.name} (${recommendedGw.eo.toFixed(1)}% EO)`;
+      )} EV) → Shield ${recommendedPlayer.name} (${recommendedGw.eo.toFixed(1)}% EO)`;
     } else {
-      reasoning = `EV gap effective (${evGapEffective.toFixed(
+      reasoning = `Advantage gap (${advantageGap.toFixed(
         2
-      )}) > tolerance (${tolerance.toFixed(
+      )} EV) > tolerance (${tolerance.toFixed(
         2
-      )}) → Chase ${recommendedPlayer.name} (${recommendedGw.ev.toFixed(1)} EV)`;
-    }
-
-    // Additional context for reasoning
-    if (rMinsSurcharge > 0.1) {
-      reasoning += ` | rMins surcharge: ${rMinsSurcharge.toFixed(2)} EV`;
-    }
-    if (xMinsPenalty > 0) {
-      reasoning += ` | xMins penalty: ${xMinsPenalty.toFixed(2)} EV`;
+      )} EV) → Chase ${recommendedPlayer.name} (${recommendedGw.ev.toFixed(1)} EV)`;
     }
 
     return {
@@ -156,6 +146,8 @@ export const analyzeCaptaincy = query({
         xMins: highEO.gw.xMins,
         eo: highEO.gw.eo,
         p90: p90HighEO,
+        totalScore: highEOTotalScore,
+        ceilingBonus: highEOCeilingBonus,
       },
       altPlayer: {
         id: alt.id,
@@ -165,15 +157,15 @@ export const analyzeCaptaincy = query({
         xMins: alt.gw.xMins,
         eo: alt.gw.eo,
         p90: p90Alt,
+        totalScore: altTotalScore,
+        ceilingBonus: altCeilingBonus,
       },
 
       // Calculation details
       eoGap,
       tolerance,
       evGapRaw,
-      rMinsSurcharge,
-      xMinsPenalty,
-      evGapEffective,
+      advantageGap,
       captainBleed,
 
       // Explanation

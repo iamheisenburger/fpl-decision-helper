@@ -13,7 +13,6 @@ export const getSettings = query({
         captaincyEoCap: 1.0,
         xiEoRate: 0.1,
         xiEoCap: 1.0,
-        rminsWeight: 1.0,
         xMinsThreshold: 70,
         xMinsPenalty: 0.3,
         weeklyBleedBudget: 0.8,
@@ -33,7 +32,6 @@ export const upsertSettings = mutation({
     captaincyEoCap: v.optional(v.number()),
     xiEoRate: v.optional(v.number()),
     xiEoCap: v.optional(v.number()),
-    rminsWeight: v.optional(v.number()),
     xMinsThreshold: v.optional(v.number()),
     xMinsPenalty: v.optional(v.number()),
     weeklyBleedBudget: v.optional(v.number()),
@@ -50,7 +48,6 @@ export const upsertSettings = mutation({
       if (args.captaincyEoCap !== undefined) updates.captaincyEoCap = args.captaincyEoCap;
       if (args.xiEoRate !== undefined) updates.xiEoRate = args.xiEoRate;
       if (args.xiEoCap !== undefined) updates.xiEoCap = args.xiEoCap;
-      if (args.rminsWeight !== undefined) updates.rminsWeight = args.rminsWeight;
       if (args.xMinsThreshold !== undefined) updates.xMinsThreshold = args.xMinsThreshold;
       if (args.xMinsPenalty !== undefined) updates.xMinsPenalty = args.xMinsPenalty;
       if (args.weeklyBleedBudget !== undefined) updates.weeklyBleedBudget = args.weeklyBleedBudget;
@@ -66,7 +63,6 @@ export const upsertSettings = mutation({
         captaincyEoCap: args.captaincyEoCap ?? 1.0,
         xiEoRate: args.xiEoRate ?? 0.1,
         xiEoCap: args.xiEoCap ?? 1.0,
-        rminsWeight: args.rminsWeight ?? 1.0,
         xMinsThreshold: args.xMinsThreshold ?? 70,
         xMinsPenalty: args.xMinsPenalty ?? 0.3,
         weeklyBleedBudget: args.weeklyBleedBudget ?? 0.8,
@@ -87,7 +83,6 @@ export const resetSettings = mutation({
       captaincyEoCap: 1.0,
       xiEoRate: 0.1,
       xiEoCap: 1.0,
-      rminsWeight: 1.0,
       xMinsThreshold: 70,
       xMinsPenalty: 0.3,
       weeklyBleedBudget: 0.8,

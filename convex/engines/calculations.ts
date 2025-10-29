@@ -10,14 +10,14 @@
  *
  * Formula:
  * - xMins >= 88: P90 = 1.0
- * - xMins 85-87: P90 = 0.7
- * - xMins 81-84: P90 = 0.4
+ * - xMins 85-87: P90 = 0.8
+ * - xMins 81-84: P90 = 0.5
  * - xMins < 81: P90 = 0.0
  */
 export function calculateP90(xMins: number): number {
   if (xMins >= 88) return 1.0;
-  if (xMins >= 85) return 0.7;
-  if (xMins >= 81) return 0.4;
+  if (xMins >= 85) return 0.8;
+  if (xMins >= 81) return 0.5;
   return 0.0;
 }
 
@@ -41,48 +41,22 @@ export function calculateTolerance(
 }
 
 /**
- * Calculate rMins surcharge (upside penalty when switching from higher EV95×P90)
- * @param currentPlayer - Current selection (or high-EO player)
- * @param candidatePlayer - Alternative selection
- * @param weight - rMins weight coefficient (default: 0.5)
- * @returns Surcharge in EV units (always >= 0)
+ * Calculate Total Score for captaincy decisions
+ * @param player - Player with EV, EV95, xMins
+ * @returns Total score (EV + capped ceiling bonus)
  *
- * Formula: weight × max(0, EV95_current×P90_current - EV95_candidate×P90_candidate)
- * This penalizes switching away from a player with higher upside potential
+ * Formula: EV + min((EV95 - EV) × P90 × 0.5, 0.5)
+ * Ceiling bonus is capped at 0.5 EV maximum
  */
-export function calculateRMinsSurcharge(
-  currentPlayer: {
-    ev95: number;
-    xMins: number;
-  },
-  candidatePlayer: {
-    ev95: number;
-    xMins: number;
-  },
-  weight: number = 0.5
-): number {
-  const currentUpside = currentPlayer.ev95 * calculateP90(currentPlayer.xMins);
-  const candidateUpside = candidatePlayer.ev95 * calculateP90(candidatePlayer.xMins);
-
-  const surcharge = weight * Math.max(0, currentUpside - candidateUpside);
-  return surcharge;
-}
-
-/**
- * Calculate effective EV gap (raw EV gap + surcharges/penalties)
- * @param evGapRaw - Raw EV difference (candidate - current)
- * @param surcharge - rMins surcharge
- * @param xMinsPenalty - Penalty if candidate has risky minutes (optional)
- * @returns Effective EV gap
- *
- * Formula: EV_gap_raw + surcharge + xMinsPenalty
- */
-export function calculateEVGapEffective(
-  evGapRaw: number,
-  surcharge: number,
-  xMinsPenalty: number = 0
-): number {
-  return evGapRaw + surcharge + xMinsPenalty;
+export function calculateTotalScore(player: {
+  ev: number;
+  ev95: number;
+  xMins: number;
+}): number {
+  const p90 = calculateP90(player.xMins);
+  const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
+  const cappedBonus = Math.min(ceilingBonus, 0.5);
+  return player.ev + cappedBonus;
 }
 
 /**
@@ -125,14 +99,14 @@ export function calculateRAEV(
   settings: {
     xiEoRate: number;
     xiEoCap: number;
-    rminsWeight: number;
   }
 ): number {
   let raev = player.ev;
 
   // rMins surcharge: penalize if player has less upside than template
+  // Fixed 0.5 weight, capped at 1.0 EV
   const playerUpside = player.ev95 * calculateP90(player.xMins);
-  const rMinsSurcharge = settings.rminsWeight * Math.max(0, templateEv95P90 - playerUpside);
+  const rMinsSurcharge = Math.min(0.5 * Math.max(0, templateEv95P90 - playerUpside), 1.0);
   raev -= rMinsSurcharge;
 
   // EO shield bonus: reward if player has higher EO than template

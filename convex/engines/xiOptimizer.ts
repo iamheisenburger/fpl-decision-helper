@@ -123,7 +123,6 @@ export const optimizeXI = query({
         {
           xiEoRate: settings.xiEoRate,
           xiEoCap: settings.xiEoCap,
-          rminsWeight: settings.rminsWeight,
         }
       );
 
