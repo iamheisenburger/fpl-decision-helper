@@ -37,7 +37,6 @@ next-env.d.ts
 
 # convex
 .convex
-_generated
 
 # MCP config (contains sensitive tokens)
 .mcp.json
