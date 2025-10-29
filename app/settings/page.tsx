@@ -18,7 +18,7 @@ export default function SettingsPage() {
     captaincyEoCap: 1.0,
     xiEoRate: 0.1,
     xiEoCap: 1.0,
-    rminsWeight: 0.5,
+    rminsWeight: 1.0,
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
     weeklyBleedBudget: 0.8,
@@ -192,7 +192,7 @@ export default function SettingsPage() {
                 }
               />
               <p className="text-xs text-muted-foreground">
-                Default: 0.5 (surcharge coefficient for EV95×P90 drops)
+                Default: 1.0 (ceiling weight for EV95×P90 calculations - 1.0 = full expected value)
               </p>
             </div>
           </CardContent>

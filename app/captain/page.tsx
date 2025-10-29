@@ -11,8 +11,8 @@ import { api } from "@/convex/_generated/api";
 // Import the calculation functions directly
 function calculateP90(xMins: number): number {
   if (xMins >= 88) return 1.0;
-  if (xMins >= 85) return 0.7;
-  if (xMins >= 81) return 0.4;
+  if (xMins >= 85) return 0.8;
+  if (xMins >= 81) return 0.5;
   return 0.0;
 }
 
@@ -21,15 +21,17 @@ function calculateTolerance(eoGap: number, settings: { captaincyEoRate: number; 
   return Math.min(settings.captaincyEoCap, tolerance);
 }
 
-function calculateRMinsSurcharge(
+function calculateRMinsAdjustment(
   highEO: { ev95: number; xMins: number },
   alt: { ev95: number; xMins: number },
   rminsWeight: number
 ): number {
   const highEOUpside = highEO.ev95 * calculateP90(highEO.xMins);
   const altUpside = alt.ev95 * calculateP90(alt.xMins);
-  const surcharge = rminsWeight * Math.max(0, highEOUpside - altUpside);
-  return surcharge;
+  // Bidirectional: positive if highEO has better ceiling (harder to chase)
+  // negative if alt has better ceiling (easier to chase)
+  const adjustment = rminsWeight * (highEOUpside - altUpside);
+  return adjustment;
 }
 
 export default function CaptainPage() {
@@ -39,7 +41,7 @@ export default function CaptainPage() {
   const settings = settingsData || {
     captaincyEoRate: 0.1,
     captaincyEoCap: 1.0,
-    rminsWeight: 0.5,
+    rminsWeight: 1.0,
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
     weeklyBleedBudget: 0.8,
@@ -96,9 +98,9 @@ export default function CaptainPage() {
     const evGapRaw = alt.ev - highEO.ev;
     const p90HighEO = calculateP90(highEO.xMins);
     const p90Alt = calculateP90(alt.xMins);
-    const rMinsSurcharge = calculateRMinsSurcharge(highEO, alt, settings.rminsWeight);
+    const rMinsAdjustment = calculateRMinsAdjustment(highEO, alt, settings.rminsWeight);
     const xMinsPenalty = alt.xMins < settings.xMinsThreshold ? settings.xMinsPenalty : 0;
-    const evGapEffective = evGapRaw + rMinsSurcharge + xMinsPenalty;
+    const evGapEffective = evGapRaw + rMinsAdjustment + xMinsPenalty;
 
     // Decision
     const pickHighEO = evGapEffective <= tolerance;
@@ -121,8 +123,8 @@ export default function CaptainPage() {
       } (${recommendedPlayer.ev.toFixed(1)} EV)`;
     }
 
-    if (rMinsSurcharge > 0.1) {
-      reasoning += ` | rMins surcharge: ${rMinsSurcharge.toFixed(2)} EV`;
+    if (Math.abs(rMinsAdjustment) > 0.1) {
+      reasoning += ` | rMins adjustment: ${rMinsAdjustment > 0 ? '+' : ''}${rMinsAdjustment.toFixed(2)} EV`;
     }
     if (xMinsPenalty > 0) {
       reasoning += ` | xMins penalty: ${xMinsPenalty.toFixed(2)} EV`;
@@ -136,7 +138,7 @@ export default function CaptainPage() {
       eoGap,
       tolerance,
       evGapRaw,
-      rMinsSurcharge,
+      rMinsAdjustment,
       xMinsPenalty,
       evGapEffective,
       captainBleed,
@@ -446,10 +448,10 @@ export default function CaptainPage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">
-                      rMins Surcharge:
+                      rMins Adjustment:
                     </span>
-                    <span className="font-medium">
-                      +{analysis.rMinsSurcharge.toFixed(2)} EV
+                    <span className={`font-medium ${analysis.rMinsAdjustment > 0 ? 'text-amber-400' : 'text-green-400'}`}>
+                      {analysis.rMinsAdjustment > 0 ? '+' : ''}{analysis.rMinsAdjustment.toFixed(2)} EV
                     </span>
                   </div>
                   {analysis.xMinsPenalty > 0 && (

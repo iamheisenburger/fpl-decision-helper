@@ -12,8 +12,8 @@ import { api } from "@/convex/_generated/api";
 // Calculation functions
 function calculateP90(xMins: number): number {
   if (xMins >= 88) return 1.0;
-  if (xMins >= 85) return 0.7;
-  if (xMins >= 81) return 0.4;
+  if (xMins >= 85) return 0.8;
+  if (xMins >= 81) return 0.5;
   return 0.0;
 }
 
@@ -77,7 +77,7 @@ export default function XIPage() {
   // Default settings fallback
   const settings = settingsData || {
     xiEoRate: 0.1,
-    rminsWeight: 0.5,
+    rminsWeight: 1.0,
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
     weeklyBleedBudget: 0.8,
