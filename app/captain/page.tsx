@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 // Import the calculation functions directly
 function calculateP90(xMins: number): number {
@@ -14,22 +16,34 @@ function calculateP90(xMins: number): number {
   return 0.0;
 }
 
-function calculateTolerance(eoGap: number): number {
-  const tolerance = (eoGap / 10) * 0.1;
-  return Math.min(1.0, tolerance);
+function calculateTolerance(eoGap: number, settings: { captaincyEoRate: number; captaincyEoCap: number }): number {
+  const tolerance = (eoGap / 10) * settings.captaincyEoRate;
+  return Math.min(settings.captaincyEoCap, tolerance);
 }
 
 function calculateRMinsSurcharge(
   highEO: { ev95: number; xMins: number },
-  alt: { ev95: number; xMins: number }
+  alt: { ev95: number; xMins: number },
+  rminsWeight: number
 ): number {
   const highEOUpside = highEO.ev95 * calculateP90(highEO.xMins);
   const altUpside = alt.ev95 * calculateP90(alt.xMins);
-  const surcharge = 0.5 * Math.max(0, highEOUpside - altUpside);
+  const surcharge = rminsWeight * Math.max(0, highEOUpside - altUpside);
   return surcharge;
 }
 
 export default function CaptainPage() {
+  const settingsData = useQuery(api.userSettings.getSettings);
+
+  // Default settings fallback
+  const settings = settingsData || {
+    captaincyEoRate: 0.1,
+    captaincyEoCap: 1.0,
+    rminsWeight: 0.5,
+    xMinsThreshold: 70,
+    xMinsPenalty: 0.3,
+    weeklyBleedBudget: 0.8,
+  };
   const [player1, setPlayer1] = useState({
     name: "",
     ev: "",
@@ -78,12 +92,12 @@ export default function CaptainPage() {
 
     // Calculate
     const eoGap = highEO.eo - alt.eo;
-    const tolerance = calculateTolerance(eoGap);
+    const tolerance = calculateTolerance(eoGap, settings);
     const evGapRaw = alt.ev - highEO.ev;
     const p90HighEO = calculateP90(highEO.xMins);
     const p90Alt = calculateP90(alt.xMins);
-    const rMinsSurcharge = calculateRMinsSurcharge(highEO, alt);
-    const xMinsPenalty = alt.xMins < 70 ? 0.3 : 0;
+    const rMinsSurcharge = calculateRMinsSurcharge(highEO, alt, settings.rminsWeight);
+    const xMinsPenalty = alt.xMins < settings.xMinsThreshold ? settings.xMinsPenalty : 0;
     const evGapEffective = evGapRaw + rMinsSurcharge + xMinsPenalty;
 
     // Decision
@@ -292,12 +306,22 @@ export default function CaptainPage() {
               </div>
 
               {analysis.captainBleed > 0 && (
-                <div className="bg-amber-500/10 p-4 rounded-md border border-amber-500/20">
-                  <p className="text-sm font-medium text-amber-400">
-                    ⚠️ Captain Bleed: {analysis.captainBleed.toFixed(2)} EV
+                <div className={`p-4 rounded-md border ${
+                  analysis.captainBleed > settings.weeklyBleedBudget
+                    ? "bg-red-500/10 border-red-500/20"
+                    : "bg-amber-500/10 border-amber-500/20"
+                }`}>
+                  <p className={`text-sm font-medium ${
+                    analysis.captainBleed > settings.weeklyBleedBudget ? "text-red-400" : "text-amber-400"
+                  }`}>
+                    {analysis.captainBleed > settings.weeklyBleedBudget ? "🚨" : "⚠️"} Captain Bleed: {analysis.captainBleed.toFixed(2)} EV / {settings.weeklyBleedBudget.toFixed(1)} budget
                   </p>
-                  <p className="text-xs text-amber-400/80 mt-1">
-                    You're protecting rank at a slight EV cost
+                  <p className={`text-xs mt-1 ${
+                    analysis.captainBleed > settings.weeklyBleedBudget ? "text-red-400/80" : "text-amber-400/80"
+                  }`}>
+                    {analysis.captainBleed > settings.weeklyBleedBudget
+                      ? "⚠️ Exceeds your weekly bleed budget! Consider chasing EV instead."
+                      : "You're protecting rank at an acceptable EV cost"}
                   </p>
                 </div>
               )}

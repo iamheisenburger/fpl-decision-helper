@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 // Calculation functions
 function calculateP90(xMins: number): number {
@@ -15,23 +17,33 @@ function calculateP90(xMins: number): number {
   return 0.0;
 }
 
-function calculateRAEV(player: {
-  ev: number;
-  ev95: number;
-  xMins: number;
-  eo: number;
-}): number {
+function calculateRAEV(
+  player: {
+    ev: number;
+    ev95: number;
+    xMins: number;
+    eo: number;
+  },
+  settings: {
+    xiEoRate: number;
+    rminsWeight: number;
+    xMinsThreshold: number;
+    xMinsPenalty: number;
+  }
+): number {
   const p90 = calculateP90(player.xMins);
 
   // Ceiling bonus: reward EV95 upside weighted by minutes confidence (P90)
-  // Same 0.5 weight as captaincy rMins surcharge
-  const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
+  const ceilingBonus = (player.ev95 - player.ev) * p90 * settings.rminsWeight;
 
-  // EO shield bonus: protect template players (consistent with tolerance logic)
-  // At 60% EO = 0.3 EV shield, at 70% EO = 0.35 EV shield
-  const eoShield = player.eo > 50 ? (player.eo / 100) * 0.5 : 0;
+  // EO shield bonus: 0.1 EV per 15% EO for high-EO players (>50%)
+  // Example: 60% EO = (60/15) * 0.1 = 0.4, 75% EO = (75/15) * 0.1 = 0.5
+  const eoShield = player.eo > 50 ? (player.eo / 15) * settings.xiEoRate : 0;
 
-  return player.ev + ceilingBonus + eoShield;
+  // xMins floor penalty: penalize players with risky minutes
+  const xMinsPenalty = player.xMins < settings.xMinsThreshold ? settings.xMinsPenalty : 0;
+
+  return player.ev + ceilingBonus + eoShield - xMinsPenalty;
 }
 
 type Position = "GK" | "DEF" | "MID" | "FWD";
@@ -56,10 +68,20 @@ const emptyPlayer = {
 };
 
 export default function XIPage() {
+  const settingsData = useQuery(api.userSettings.getSettings);
   const [players, setPlayers] = useState<any[]>(
     Array(15).fill(null).map(() => ({ ...emptyPlayer }))
   );
   const [result, setResult] = useState<any>(null);
+
+  // Default settings fallback
+  const settings = settingsData || {
+    xiEoRate: 0.1,
+    rminsWeight: 0.5,
+    xMinsThreshold: 70,
+    xMinsPenalty: 0.3,
+    weeklyBleedBudget: 0.8,
+  };
 
   const updatePlayer = (index: number, field: string, value: any) => {
     const newPlayers = [...players];
@@ -81,7 +103,7 @@ export default function XIPage() {
       }))
       .map(p => ({
         ...p,
-        raev: calculateRAEV(p),
+        raev: calculateRAEV(p, settings),
       }));
 
     if (filledPlayers.length < 11) {
@@ -132,12 +154,19 @@ export default function XIPage() {
 
     const bench = filledPlayers.filter(p => !bestXI.some(starter => starter.name === p.name));
 
+    // Calculate XI bleed (EO shield component - template tax)
+    const xiBleed = bestXI.reduce((sum, p) => {
+      const eoShield = p.eo > 50 ? (p.eo / 15) * settings.xiEoRate : 0;
+      return sum + eoShield;
+    }, 0);
+
     setResult({
       xi: bestXI,
       bench,
       formation: bestFormation,
       totalRAEV: bestTotalRAEV,
       totalEV: bestXI.reduce((sum, p) => sum + p.ev, 0),
+      xiBleed,
     });
   };
 
@@ -281,6 +310,27 @@ export default function XIPage() {
                   <p className="text-2xl font-bold">{result.totalRAEV.toFixed(1)}</p>
                 </div>
               </div>
+
+              {result.xiBleed > 0 && (
+                <div className={`p-4 rounded-md border mb-6 ${
+                  result.xiBleed > settings.weeklyBleedBudget * 0.6
+                    ? "bg-red-500/10 border-red-500/20"
+                    : "bg-amber-500/10 border-amber-500/20"
+                }`}>
+                  <p className={`text-sm font-medium ${
+                    result.xiBleed > settings.weeklyBleedBudget * 0.6 ? "text-red-400" : "text-amber-400"
+                  }`}>
+                    {result.xiBleed > settings.weeklyBleedBudget * 0.6 ? "🚨" : "⚠️"} XI Template Tax: {result.xiBleed.toFixed(2)} EV
+                  </p>
+                  <p className={`text-xs mt-1 ${
+                    result.xiBleed > settings.weeklyBleedBudget * 0.6 ? "text-red-400/80" : "text-amber-400/80"
+                  }`}>
+                    {result.xiBleed > settings.weeklyBleedBudget * 0.6
+                      ? "⚠️ High template coverage - consider more differentials for rank gain potential"
+                      : "EO shield protecting your high-ownership players"}
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <h3 className="font-semibold mb-3">Starting XI (11 players)</h3>
