@@ -154,12 +154,27 @@ export default function XIPage() {
 
     const bench = filledPlayers.filter(p => !bestXI.some(starter => starter.name === p.name));
 
+    // Calculate XI EV bleed (when we pick lower EV for higher EO)
+    // Compare XI total EV vs what we could have had picking pure EV
+    const sortedByEV = [...filledPlayers].sort((a, b) => b.ev - a.ev);
+    const formationParts = bestFormation.split('-').map(n => parseInt(n));
+    const pureEVXI = [
+      ...gks.slice(0, 1),
+      ...sortedByEV.filter(p => p.position === "DEF").slice(0, formationParts[0]),
+      ...sortedByEV.filter(p => p.position === "MID").slice(0, formationParts[1]),
+      ...sortedByEV.filter(p => p.position === "FWD").slice(0, formationParts[2]),
+    ];
+    const pureEVTotal = pureEVXI.reduce((sum, p) => sum + p.ev, 0);
+    const actualEVTotal = bestXI.reduce((sum, p) => sum + p.ev, 0);
+    const xiBleed = Math.max(0, pureEVTotal - actualEVTotal);
+
     setResult({
       xi: bestXI,
       bench,
       formation: bestFormation,
       totalRAEV: bestTotalRAEV,
-      totalEV: bestXI.reduce((sum, p) => sum + p.ev, 0),
+      totalEV: actualEVTotal,
+      xiBleed,
     });
   };
 
@@ -303,6 +318,27 @@ export default function XIPage() {
                   <p className="text-2xl font-bold">{result.totalRAEV.toFixed(1)}</p>
                 </div>
               </div>
+
+              {result.xiBleed > 0.05 && (
+                <div className={`p-4 rounded-md border mb-4 ${
+                  result.xiBleed > settings.weeklyBleedBudget * 0.5
+                    ? "bg-red-500/10 border-red-500/20"
+                    : "bg-amber-500/10 border-amber-500/20"
+                }`}>
+                  <p className={`text-sm font-medium ${
+                    result.xiBleed > settings.weeklyBleedBudget * 0.5 ? "text-red-400" : "text-amber-400"
+                  }`}>
+                    {result.xiBleed > settings.weeklyBleedBudget * 0.5 ? "🚨" : "⚠️"} XI EV Bleed: {result.xiBleed.toFixed(2)} EV / {settings.weeklyBleedBudget.toFixed(1)} budget
+                  </p>
+                  <p className={`text-xs mt-1 ${
+                    result.xiBleed > settings.weeklyBleedBudget * 0.5 ? "text-red-400/80" : "text-amber-400/80"
+                  }`}>
+                    {result.xiBleed > settings.weeklyBleedBudget * 0.5
+                      ? "High EV sacrifice for EO protection - consider if rank protection is worth it"
+                      : "Protecting rank with EO shield at acceptable EV cost"}
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <h3 className="font-semibold mb-3">Starting XI (11 players)</h3>

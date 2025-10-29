@@ -100,12 +100,14 @@ export default function CaptainPage() {
     const p90Alt = calculateP90(alt.xMins);
     const rMinsAdjustment = calculateRMinsAdjustment(highEO, alt, settings.rminsWeight);
     const xMinsPenalty = alt.xMins < settings.xMinsThreshold ? settings.xMinsPenalty : 0;
-    const evGapEffective = evGapRaw + rMinsAdjustment + xMinsPenalty;
+    // FIXED: Subtract rMinsAdjustment (not add) - when alt has better ceiling, gap should INCREASE
+    const evGapEffective = evGapRaw - rMinsAdjustment + xMinsPenalty;
 
     // Decision
     const pickHighEO = evGapEffective <= tolerance;
     const recommendedPlayer = pickHighEO ? highEO : alt;
-    const captainBleed = pickHighEO ? Math.max(0, evGapEffective) : 0;
+    // FIXED: Captain bleed is the ACTUAL EV difference (not effective gap)
+    const captainBleed = pickHighEO ? Math.max(0, evGapRaw) : 0;
 
     // Reasoning
     let reasoning = "";
