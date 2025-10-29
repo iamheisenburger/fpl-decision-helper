@@ -22,6 +22,15 @@ export const getSettings = query({
       };
     }
 
+    // Auto-migrate old rminsWeight value (0.5 → 1.0)
+    // This ensures users get the new neutral default without manual reset
+    if (settings.rminsWeight === 0.5) {
+      return {
+        ...settings,
+        rminsWeight: 1.0,
+      };
+    }
+
     return settings;
   },
 });

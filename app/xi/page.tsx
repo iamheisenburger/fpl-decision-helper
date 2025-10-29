@@ -154,19 +154,12 @@ export default function XIPage() {
 
     const bench = filledPlayers.filter(p => !bestXI.some(starter => starter.name === p.name));
 
-    // Calculate XI bleed (EO shield component - template tax)
-    const xiBleed = bestXI.reduce((sum, p) => {
-      const eoShield = p.eo > 50 ? (p.eo / 15) * settings.xiEoRate : 0;
-      return sum + eoShield;
-    }, 0);
-
     setResult({
       xi: bestXI,
       bench,
       formation: bestFormation,
       totalRAEV: bestTotalRAEV,
       totalEV: bestXI.reduce((sum, p) => sum + p.ev, 0),
-      xiBleed,
     });
   };
 
@@ -310,27 +303,6 @@ export default function XIPage() {
                   <p className="text-2xl font-bold">{result.totalRAEV.toFixed(1)}</p>
                 </div>
               </div>
-
-              {result.xiBleed > 0 && (
-                <div className={`p-4 rounded-md border mb-6 ${
-                  result.xiBleed > settings.weeklyBleedBudget * 0.6
-                    ? "bg-red-500/10 border-red-500/20"
-                    : "bg-amber-500/10 border-amber-500/20"
-                }`}>
-                  <p className={`text-sm font-medium ${
-                    result.xiBleed > settings.weeklyBleedBudget * 0.6 ? "text-red-400" : "text-amber-400"
-                  }`}>
-                    {result.xiBleed > settings.weeklyBleedBudget * 0.6 ? "🚨" : "⚠️"} XI Template Tax: {result.xiBleed.toFixed(2)} EV
-                  </p>
-                  <p className={`text-xs mt-1 ${
-                    result.xiBleed > settings.weeklyBleedBudget * 0.6 ? "text-red-400/80" : "text-amber-400/80"
-                  }`}>
-                    {result.xiBleed > settings.weeklyBleedBudget * 0.6
-                      ? "⚠️ High template coverage - consider more differentials for rank gain potential"
-                      : "EO shield protecting your high-ownership players"}
-                  </p>
-                </div>
-              )}
 
               <div className="space-y-2">
                 <h3 className="font-semibold mb-3">Starting XI (11 players)</h3>
