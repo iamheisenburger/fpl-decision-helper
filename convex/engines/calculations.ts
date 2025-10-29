@@ -49,25 +49,6 @@ export function calculateVariancePenalty(xMins: number): number {
 }
 
 /**
- * Calculate EO tolerance based on EO gap
- * @param eoGap - Expected Ownership gap (percentage points)
- * @param rate - EV per unit EO (e.g., 0.1 EV per 10% for captaincy)
- * @param cap - Maximum tolerance cap (e.g., 1.0 EV)
- * @returns Tolerance in EV units
- *
- * Captaincy: 0.1 EV per 10% EO gap, capped at 1.0 EV
- * XI: 0.1 EV per 15% EO gap, capped at 1.0 EV
- */
-export function calculateTolerance(
-  eoGap: number,
-  rate: number,
-  cap: number
-): number {
-  const tolerance = (eoGap / 10) * rate;
-  return Math.min(cap, tolerance);
-}
-
-/**
  * Calculate Total Score for captaincy decisions
  * @param player - Player with EV, EV95, xMins, EO
  * @param eoRate - EV per 10% EO (default: 0.1 for captaincy)

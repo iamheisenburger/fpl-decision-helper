@@ -2,7 +2,6 @@ import { query } from "../_generated/server";
 import { v } from "convex/values";
 import {
   calculateP90,
-  calculateTolerance,
   calculateTotalScore,
 } from "./calculations";
 
@@ -10,10 +9,8 @@ import {
  * Captaincy Decision Engine
  *
  * Simple, predictable logic:
- * 1. Calculate Total Score for each player: EV + min((EV95-EV)×P90×0.5, 0.5)
- * 2. Calculate advantage gap: Alt Total - HighEO Total
- * 3. Calculate EO tolerance: min((EO gap / 10) × 0.1, 1.0)
- * 4. Decision: Shield if advantage gap ≤ tolerance, else chase
+ * 1. Calculate Total Score for each player: EV + (EV95-EV)×P90×0.5 + eoShield - variancePenalty
+ * 2. Decision: Pick player with highest Total Score (EO protection baked in)
  */
 
 export const analyzeCaptaincy = query({
@@ -88,16 +85,11 @@ export const analyzeCaptaincy = query({
       settings.captaincyEoRate
     );
 
-    // Calculate advantage gap
-    const advantageGap = altTotalScore - highEOTotalScore;
-
-    // Calculate EO tolerance
-    const eoGap = highEO.gw.eo - alt.gw.eo;
-    const tolerance = calculateTolerance(
-      eoGap,
-      settings.captaincyEoRate,
-      settings.captaincyEoCap
-    );
+    // Decision: Pick player with highest Total Score (EO protection already baked in)
+    const recommendedPlayer = highEOTotalScore >= altTotalScore ? highEO : alt;
+    const winningScore = Math.max(highEOTotalScore, altTotalScore);
+    const losingScore = Math.min(highEOTotalScore, altTotalScore);
+    const scoreGap = winningScore - losingScore;
 
     // Calculate P90 values for display
     const p90HighEO = calculateP90(highEO.gw.xMins);
@@ -111,37 +103,19 @@ export const analyzeCaptaincy = query({
     const highEOEoShield = (highEO.gw.eo / 10) * settings.captaincyEoRate;
     const altEoShield = (alt.gw.eo / 10) * settings.captaincyEoRate;
 
-    // Make decision: Shield if advantage gap is within tolerance
-    const pickHighEO = advantageGap <= tolerance;
-    const recommendedId = pickHighEO ? highEO.id : alt.id;
-    const recommendedPlayer = pickHighEO ? highEO.player : alt.player;
-    const recommendedGw = pickHighEO ? highEO.gw : alt.gw;
-
-    // Calculate captain bleed (actual EV difference when shielding)
-    const evGapRaw = alt.gw.ev - highEO.gw.ev;
-    const captainBleed = pickHighEO ? Math.max(0, evGapRaw) : 0;
+    // Calculate EO gap for display
+    const eoGap = Math.abs(highEO.gw.eo - alt.gw.eo);
 
     // Generate reasoning
-    let reasoning = "";
-    if (pickHighEO) {
-      reasoning = `Advantage gap (${advantageGap.toFixed(
-        2
-      )} EV) ≤ tolerance (${tolerance.toFixed(
-        2
-      )} EV) → Shield ${recommendedPlayer.name} (${recommendedGw.eo.toFixed(1)}% EO)`;
-    } else {
-      reasoning = `Advantage gap (${advantageGap.toFixed(
-        2
-      )} EV) > tolerance (${tolerance.toFixed(
-        2
-      )} EV) → Chase ${recommendedPlayer.name} (${recommendedGw.ev.toFixed(1)} EV)`;
-    }
+    const reasoning = `${recommendedPlayer.player.name} has the highest Total Score (${winningScore.toFixed(2)}) with EO protection baked in`;
 
     return {
       // Decision
-      recommendedPlayerId: recommendedId,
-      recommendedPlayerName: recommendedPlayer.name,
-      pickHighEO,
+      recommendedPlayerId: recommendedPlayer.id,
+      recommendedPlayerName: recommendedPlayer.player.name,
+      winningScore,
+      losingScore,
+      scoreGap,
 
       // Players comparison
       highEOPlayer: {
@@ -171,10 +145,6 @@ export const analyzeCaptaincy = query({
 
       // Calculation details
       eoGap,
-      tolerance,
-      evGapRaw,
-      advantageGap,
-      captainBleed,
 
       // Explanation
       reasoning,

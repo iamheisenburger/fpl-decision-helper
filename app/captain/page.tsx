@@ -27,12 +27,6 @@ function calculateVariancePenalty(xMins: number): number {
   return (95 - xMins) / 100;
 }
 
-// Calculate EO tolerance
-function calculateTolerance(eoGap: number, settings: { captaincyEoRate: number; captaincyEoCap: number }): number {
-  const tolerance = (eoGap / 10) * settings.captaincyEoRate;
-  return Math.min(settings.captaincyEoCap, tolerance);
-}
-
 // Calculate Total Score: EV + ceiling bonus + EO shield - variance penalty
 function calculateTotalScore(player: { ev: number; ev95: number; xMins: number; eo: number }, eoRate: number): number {
   const p90 = calculateP90(player.xMins);
@@ -103,20 +97,14 @@ export default function CaptainPage() {
     const highEOTotalScore = calculateTotalScore(highEO, settings.captaincyEoRate);
     const altTotalScore = calculateTotalScore(alt, settings.captaincyEoRate);
 
-    // Calculate advantage gap
-    const advantageGap = altTotalScore - highEOTotalScore;
+    // Decision: Pick player with highest Total Score (EO protection already baked in)
+    const recommendedPlayer = highEOTotalScore >= altTotalScore ? highEO : alt;
+    const winningScore = Math.max(highEOTotalScore, altTotalScore);
+    const losingScore = Math.min(highEOTotalScore, altTotalScore);
+    const scoreGap = winningScore - losingScore;
 
-    // Calculate EO tolerance
-    const eoGap = highEO.eo - alt.eo;
-    const tolerance = calculateTolerance(eoGap, settings);
-
-    // Decision: Shield if advantage gap is within tolerance
-    const pickHighEO = advantageGap <= tolerance;
-    const recommendedPlayer = pickHighEO ? highEO : alt;
-
-    // Captain bleed: Total Score (RAEV) sacrificed when shielding high-EO
-    const evGapRaw = alt.ev - highEO.ev;
-    const captainBleed = pickHighEO ? Math.max(0, advantageGap) : 0;
+    // Calculate EO gap for display
+    const eoGap = Math.abs(highEO.eo - alt.eo);
 
     // P90 values for display
     const p90HighEO = calculateP90(highEO.xMins);
@@ -131,31 +119,16 @@ export default function CaptainPage() {
     const altEoShield = (alt.eo / 10) * settings.captaincyEoRate;
 
     // Reasoning
-    let reasoning = "";
-    if (pickHighEO) {
-      reasoning = `Advantage gap (${advantageGap.toFixed(
-        2
-      )} EV) ≤ tolerance (${tolerance.toFixed(2)} EV) → Shield ${
-        recommendedPlayer.name
-      } (${recommendedPlayer.eo.toFixed(1)}% EO)`;
-    } else {
-      reasoning = `Advantage gap (${advantageGap.toFixed(
-        2
-      )} EV) > tolerance (${tolerance.toFixed(2)} EV) → Chase ${
-        recommendedPlayer.name
-      } (${recommendedPlayer.ev.toFixed(1)} EV)`;
-    }
+    const reasoning = `${recommendedPlayer.name} has the highest Total Score (${winningScore.toFixed(2)}) with EO protection baked in`;
 
     setAnalysis({
       recommendedPlayer: recommendedPlayer.name,
-      pickHighEO,
+      winningScore,
+      losingScore,
+      scoreGap,
       highEOPlayer: { ...highEO, p90: p90HighEO, totalScore: highEOTotalScore, ceilingBonus: highEOCeilingBonus, eoShield: highEOEoShield },
       altPlayer: { ...alt, p90: p90Alt, totalScore: altTotalScore, ceilingBonus: altCeilingBonus, eoShield: altEoShield },
       eoGap,
-      tolerance,
-      evGapRaw,
-      advantageGap,
-      captainBleed,
       reasoning,
     });
   };
@@ -305,42 +278,20 @@ export default function CaptainPage() {
               <CardTitle className="text-2xl">Recommendation</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div
-                className={`p-6 rounded-lg ${
-                  analysis.pickHighEO ? "bg-green-500/10" : "bg-blue-500/10"
-                }`}
-              >
+              <div className="p-6 rounded-lg bg-primary/10">
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground mb-2">
-                    {analysis.pickHighEO ? "🛡️ Shield High-EO" : "🎯 Chase EV"}
+                    🎯 Highest Total Score
                   </p>
                   <h2 className="text-3xl font-bold mb-2">
                     Captain: {analysis.recommendedPlayer}
                   </h2>
                   <p className="text-sm mt-4 font-medium">{analysis.reasoning}</p>
+                  <p className="text-xs mt-2 text-muted-foreground">
+                    Wins by {analysis.scoreGap.toFixed(2)} EV
+                  </p>
                 </div>
               </div>
-
-              {analysis.captainBleed > 0 && (
-                <div className={`p-4 rounded-md border ${
-                  analysis.captainBleed > settings.weeklyBleedBudget
-                    ? "bg-red-500/10 border-red-500/20"
-                    : "bg-amber-500/10 border-amber-500/20"
-                }`}>
-                  <p className={`text-sm font-medium ${
-                    analysis.captainBleed > settings.weeklyBleedBudget ? "text-red-400" : "text-amber-400"
-                  }`}>
-                    {analysis.captainBleed > settings.weeklyBleedBudget ? "🚨" : "⚠️"} Captain Bleed: {analysis.captainBleed.toFixed(2)} EV / {settings.weeklyBleedBudget.toFixed(1)} budget
-                  </p>
-                  <p className={`text-xs mt-1 ${
-                    analysis.captainBleed > settings.weeklyBleedBudget ? "text-red-400/80" : "text-amber-400/80"
-                  }`}>
-                    {analysis.captainBleed > settings.weeklyBleedBudget
-                      ? "⚠️ Exceeds your weekly bleed budget! Consider chasing EV instead."
-                      : "You're protecting rank at an acceptable EV cost"}
-                  </p>
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -492,8 +443,8 @@ export default function CaptainPage() {
                   <hr className="border-border" />
 
                   <div className="flex justify-between font-semibold">
-                    <span>Advantage Gap:</span>
-                    <span>{analysis.advantageGap.toFixed(2)} EV</span>
+                    <span>Score Difference:</span>
+                    <span>{analysis.scoreGap.toFixed(2)} EV</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">EO Gap:</span>
@@ -501,33 +452,11 @@ export default function CaptainPage() {
                       {analysis.eoGap.toFixed(1)}%
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tolerance:</span>
-                    <span className="font-medium">
-                      {analysis.tolerance.toFixed(2)} EV
-                    </span>
-                  </div>
                 </div>
 
-                <div
-                  className={`mt-4 p-3 rounded-md ${
-                    analysis.advantageGap <= analysis.tolerance
-                      ? "bg-green-500/10 border border-green-500/20"
-                      : "bg-blue-500/10 border border-blue-500/20"
-                  }`}
-                >
+                <div className="mt-4 p-3 rounded-md bg-primary/10 border border-primary/20">
                   <p className="text-xs font-medium text-center">
-                    {analysis.advantageGap <= analysis.tolerance ? (
-                      <>
-                        ✓ Advantage gap ({analysis.advantageGap.toFixed(2)}) ≤
-                        Tolerance ({analysis.tolerance.toFixed(2)})
-                      </>
-                    ) : (
-                      <>
-                        ✗ Advantage gap ({analysis.advantageGap.toFixed(2)}) &gt;
-                        Tolerance ({analysis.tolerance.toFixed(2)})
-                      </>
-                    )}
+                    ✓ {analysis.recommendedPlayer} wins with highest Total Score
                   </p>
                 </div>
               </CardContent>
