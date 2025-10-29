@@ -8,12 +8,23 @@ import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-// P90 confidence thresholds
+// P90 confidence thresholds (granular)
 function calculateP90(xMins: number): number {
-  if (xMins >= 88) return 1.0;
-  if (xMins >= 85) return 0.8;
-  if (xMins >= 81) return 0.5;
+  if (xMins >= 95) return 1.0;
+  if (xMins >= 90) return 0.9;
+  if (xMins >= 88) return 0.85;
+  if (xMins >= 86) return 0.75;
+  if (xMins >= 84) return 0.65;
+  if (xMins >= 82) return 0.55;
+  if (xMins >= 80) return 0.45;
+  if (xMins >= 75) return 0.30;
+  if (xMins >= 70) return 0.15;
   return 0.0;
+}
+
+// Variance penalty - increases as player strays from 95 xMins
+function calculateVariancePenalty(xMins: number): number {
+  return (95 - xMins) / 100;
 }
 
 // Calculate EO tolerance
@@ -22,11 +33,12 @@ function calculateTolerance(eoGap: number, settings: { captaincyEoRate: number; 
   return Math.min(settings.captaincyEoCap, tolerance);
 }
 
-// Calculate Total Score: EV + ceiling bonus (P90 controls probability)
+// Calculate Total Score: EV + ceiling bonus - variance penalty
 function calculateTotalScore(player: { ev: number; ev95: number; xMins: number }): number {
   const p90 = calculateP90(player.xMins);
   const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
-  return player.ev + ceilingBonus;
+  const variancePenalty = calculateVariancePenalty(player.xMins);
+  return player.ev + ceilingBonus - variancePenalty;
 }
 
 export default function CaptainPage() {

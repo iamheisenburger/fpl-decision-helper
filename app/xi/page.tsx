@@ -9,12 +9,23 @@ import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-// Calculation functions
+// P90 confidence thresholds (granular)
 function calculateP90(xMins: number): number {
-  if (xMins >= 88) return 1.0;
-  if (xMins >= 85) return 0.8;
-  if (xMins >= 81) return 0.5;
+  if (xMins >= 95) return 1.0;
+  if (xMins >= 90) return 0.9;
+  if (xMins >= 88) return 0.85;
+  if (xMins >= 86) return 0.75;
+  if (xMins >= 84) return 0.65;
+  if (xMins >= 82) return 0.55;
+  if (xMins >= 80) return 0.45;
+  if (xMins >= 75) return 0.30;
+  if (xMins >= 70) return 0.15;
   return 0.0;
+}
+
+// Variance penalty - increases as player strays from 95 xMins
+function calculateVariancePenalty(xMins: number): number {
+  return (95 - xMins) / 100;
 }
 
 function calculateRAEV(
@@ -43,7 +54,10 @@ function calculateRAEV(
   // xMins floor penalty: penalize players with risky minutes
   const xMinsPenalty = player.xMins < settings.xMinsThreshold ? settings.xMinsPenalty : 0;
 
-  return player.ev + ceilingBonus + eoShield - xMinsPenalty;
+  // Variance penalty: uncertainty increases as player strays from 95 xMins
+  const variancePenalty = calculateVariancePenalty(player.xMins);
+
+  return player.ev + ceilingBonus + eoShield - xMinsPenalty - variancePenalty;
 }
 
 type Position = "GK" | "DEF" | "MID" | "FWD";

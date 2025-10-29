@@ -4,21 +4,48 @@
  */
 
 /**
- * Calculate P90 (probability of 90+ minutes) based on xMins
+ * Calculate P90 (probability of hitting EV95 ceiling) based on xMins
  * @param xMins - Expected minutes
  * @returns P90 value (0.0 to 1.0)
  *
- * Formula:
- * - xMins >= 88: P90 = 1.0
- * - xMins 85-87: P90 = 0.8
- * - xMins 81-84: P90 = 0.5
- * - xMins < 81: P90 = 0.0
+ * Granular thresholds:
+ * - xMins >= 95: P90 = 1.0 (plays full match including AET)
+ * - xMins 90-94: P90 = 0.9
+ * - xMins 88-89: P90 = 0.85
+ * - xMins 86-87: P90 = 0.75
+ * - xMins 84-85: P90 = 0.65
+ * - xMins 82-83: P90 = 0.55
+ * - xMins 80-81: P90 = 0.45
+ * - xMins 75-79: P90 = 0.30
+ * - xMins 70-74: P90 = 0.15
+ * - xMins < 70: P90 = 0.0 (unreliable minutes)
  */
 export function calculateP90(xMins: number): number {
-  if (xMins >= 88) return 1.0;
-  if (xMins >= 85) return 0.8;
-  if (xMins >= 81) return 0.5;
+  if (xMins >= 95) return 1.0;
+  if (xMins >= 90) return 0.9;
+  if (xMins >= 88) return 0.85;
+  if (xMins >= 86) return 0.75;
+  if (xMins >= 84) return 0.65;
+  if (xMins >= 82) return 0.55;
+  if (xMins >= 80) return 0.45;
+  if (xMins >= 75) return 0.30;
+  if (xMins >= 70) return 0.15;
   return 0.0;
+}
+
+/**
+ * Calculate variance penalty based on minutes uncertainty
+ * @param xMins - Expected minutes
+ * @returns Variance penalty in EV units
+ *
+ * Formula: (95 - xMins) / 100
+ *
+ * Rationale: Players further from 95 xMins have higher outcome variance.
+ * Even if they're likely to hit their xMins projection, there's uncertainty
+ * about whether they'll actually achieve it (sub risk, rotation, etc.)
+ */
+export function calculateVariancePenalty(xMins: number): number {
+  return (95 - xMins) / 100;
 }
 
 /**
@@ -43,10 +70,10 @@ export function calculateTolerance(
 /**
  * Calculate Total Score for captaincy decisions
  * @param player - Player with EV, EV95, xMins
- * @returns Total score (EV + ceiling bonus)
+ * @returns Total score (EV + ceiling bonus - variance penalty)
  *
- * Formula: EV + (EV95 - EV) × P90 × 0.5
- * P90 naturally controls probability based on xMins confidence
+ * Formula: EV + (EV95 - EV) × P90 × 0.5 - variancePenalty
+ * P90 controls ceiling probability, variance penalty accounts for xMins uncertainty
  */
 export function calculateTotalScore(player: {
   ev: number;
@@ -55,7 +82,8 @@ export function calculateTotalScore(player: {
 }): number {
   const p90 = calculateP90(player.xMins);
   const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
-  return player.ev + ceilingBonus;
+  const variancePenalty = calculateVariancePenalty(player.xMins);
+  return player.ev + ceilingBonus - variancePenalty;
 }
 
 /**
@@ -114,6 +142,10 @@ export function calculateRAEV(
     (player.eo / 15) * settings.xiEoRate
   );
   raev += shieldBonus;
+
+  // Variance penalty: uncertainty increases as player strays from 95 xMins
+  const variancePenalty = calculateVariancePenalty(player.xMins);
+  raev -= variancePenalty;
 
   return raev;
 }
