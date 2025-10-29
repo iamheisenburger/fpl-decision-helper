@@ -104,9 +104,9 @@ export function calculateRAEV(
   let raev = player.ev;
 
   // rMins surcharge: penalize if player has less upside than template
-  // Fixed 0.5 weight, capped at 1.0 EV
+  // Fixed 0.5 weight, capped at 0.5 EV (same as captaincy)
   const playerUpside = player.ev95 * calculateP90(player.xMins);
-  const rMinsSurcharge = Math.min(0.5 * Math.max(0, templateEv95P90 - playerUpside), 1.0);
+  const rMinsSurcharge = Math.min(0.5 * Math.max(0, templateEv95P90 - playerUpside), 0.5);
   raev -= rMinsSurcharge;
 
   // EO shield bonus: reward if player has higher EO than template
