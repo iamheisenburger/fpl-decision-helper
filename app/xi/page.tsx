@@ -137,23 +137,23 @@ export default function XIPage() {
   };
 
   const quickFill = () => {
-    // Quick fill example data for testing
+    // Quick fill with actual user data from screenshot
     setPlayers([
-      { name: "Sels", position: "GK", ev: 2.5, ev95: 4.5, xMins: 90, eo: 5.2 },
-      { name: "Flekken", position: "GK", ev: 2.3, ev95: 4.2, xMins: 90, eo: 3.1 },
-      { name: "Gabriel", position: "DEF", ev: 4.2, ev95: 5.5, xMins: 88, eo: 35.4 },
-      { name: "Gvardiol", position: "DEF", ev: 4.3, ev95: 4.6, xMins: 86, eo: 5.6 },
-      { name: "Lewis", position: "DEF", ev: 4.1, ev95: 4.8, xMins: 85, eo: 12.3 },
-      { name: "Robinson", position: "DEF", ev: 3.8, ev95: 4.2, xMins: 82, eo: 8.1 },
-      { name: "Pedro Porro", position: "DEF", ev: 3.9, ev95: 5.1, xMins: 84, eo: 15.7 },
-      { name: "Salah", position: "MID", ev: 7.8, ev95: 12.4, xMins: 90, eo: 82.3 },
-      { name: "Semenyo", position: "MID", ev: 4.5, ev95: 4.5, xMins: 95, eo: 64.4 },
-      { name: "Palmer", position: "MID", ev: 7.2, ev95: 11.8, xMins: 88, eo: 78.1 },
-      { name: "Saka", position: "MID", ev: 6.8, ev95: 10.2, xMins: 87, eo: 52.3 },
-      { name: "Reijnders", position: "MID", ev: 4.3, ev95: 4.9, xMins: 82, eo: 26.8 },
-      { name: "Haaland", position: "FWD", ev: 5.7, ev95: 6.2, xMins: 85, eo: 68.5 },
-      { name: "Cunha", position: "FWD", ev: 5.1, ev95: 5.8, xMins: 86, eo: 42.1 },
-      { name: "Strand Larsen", position: "FWD", ev: 3.9, ev95: 4.3, xMins: 75, eo: 8.7 },
+      { name: "raya", position: "GK", ev: 4.3, ev95: 4.4, xMins: 93, eo: 29.7 },
+      { name: "dubravka", position: "GK", ev: 2.7, ev95: 2.8, xMins: 93, eo: 34.4 },
+      { name: "senesi", position: "DEF", ev: 2.8, ev95: 2.9, xMins: 88, eo: 26.8 },
+      { name: "gabriel", position: "DEF", ev: 5.3, ev95: 5.5, xMins: 90, eo: 36.6 },
+      { name: "andersen", position: "DEF", ev: 4.4, ev95: 5, xMins: 84, eo: 2.9 },
+      { name: "tarkowski", position: "DEF", ev: 4.5, ev95: 4.6, xMins: 92, eo: 6.7 },
+      { name: "gvardiol", position: "DEF", ev: 4.3, ev95: 4.6, xMins: 86, eo: 5.6 },
+      { name: "bruno", position: "MID", ev: 5.6, ev95: 6, xMins: 89, eo: 16.8 },
+      { name: "enzo", position: "MID", ev: 4.7, ev95: 4.9, xMins: 88, eo: 14.8 },
+      { name: "ndiaye", position: "MID", ev: 4.5, ev95: 4.9, xMins: 85, eo: 11.2 },
+      { name: "reijnders", position: "MID", ev: 4.3, ev95: 4.9, xMins: 82, eo: 26.8 },
+      { name: "semenyo", position: "MID", ev: 4, ev95: 4, xMins: 95, eo: 64.4 },
+      { name: "haaland", position: "FWD", ev: 6.5, ev95: 7.1, xMins: 86, eo: 68.5 },
+      { name: "gyokeres", position: "FWD", ev: 5.8, ev95: 6.3, xMins: 84, eo: 22.1 },
+      { name: "barnes", position: "FWD", ev: 0, ev95: 3.1, xMins: 0, eo: 1.3 },
     ]);
   };
 
@@ -321,14 +321,22 @@ export default function XIPage() {
             </CardContent>
           </Card>
 
-          {result.bench.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Bench ({result.bench.length} players)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {result.bench.map((player: Player, idx: number) => (
+          {result.bench.length > 0 && (() => {
+            // Sort bench: GK first, then by RAEV (highest to lowest)
+            const sortedBench = [...result.bench].sort((a, b) => {
+              if (a.position === "GK") return -1;
+              if (b.position === "GK") return 1;
+              return b.raev - a.raev; // Descending order
+            });
+
+            return (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Bench ({result.bench.length} players)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {sortedBench.map((player: Player, idx: number) => (
                     <div
                       key={idx}
                       className="flex items-center justify-between p-3 border rounded-md"
@@ -351,11 +359,12 @@ export default function XIPage() {
                         </span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </>
       )}
     </div>
