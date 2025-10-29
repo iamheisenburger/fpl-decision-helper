@@ -43,10 +43,10 @@ export function calculateTolerance(
 /**
  * Calculate Total Score for captaincy decisions
  * @param player - Player with EV, EV95, xMins
- * @returns Total score (EV + capped ceiling bonus)
+ * @returns Total score (EV + ceiling bonus)
  *
- * Formula: EV + min((EV95 - EV) × P90 × 0.5, 0.5)
- * Ceiling bonus is capped at 0.5 EV maximum
+ * Formula: EV + (EV95 - EV) × P90 × 0.5
+ * P90 naturally controls probability based on xMins confidence
  */
 export function calculateTotalScore(player: {
   ev: number;
@@ -55,8 +55,7 @@ export function calculateTotalScore(player: {
 }): number {
   const p90 = calculateP90(player.xMins);
   const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
-  const cappedBonus = Math.min(ceilingBonus, 0.5);
-  return player.ev + cappedBonus;
+  return player.ev + ceilingBonus;
 }
 
 /**
@@ -104,9 +103,9 @@ export function calculateRAEV(
   let raev = player.ev;
 
   // rMins surcharge: penalize if player has less upside than template
-  // Fixed 0.5 weight, capped at 0.5 EV (same as captaincy)
+  // P90 naturally controls probability based on xMins confidence
   const playerUpside = player.ev95 * calculateP90(player.xMins);
-  const rMinsSurcharge = Math.min(0.5 * Math.max(0, templateEv95P90 - playerUpside), 0.5);
+  const rMinsSurcharge = 0.5 * Math.max(0, templateEv95P90 - playerUpside);
   raev -= rMinsSurcharge;
 
   // EO shield bonus: reward if player has higher EO than template

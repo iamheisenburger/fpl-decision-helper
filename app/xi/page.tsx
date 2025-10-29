@@ -33,8 +33,8 @@ function calculateRAEV(
   const p90 = calculateP90(player.xMins);
 
   // Ceiling bonus: reward EV95 upside weighted by minutes confidence (P90)
-  // Fixed 0.5 weight, capped at 0.5 EV max (same as captaincy)
-  const ceilingBonus = Math.min((player.ev95 - player.ev) * p90 * 0.5, 0.5);
+  // P90 naturally controls probability based on xMins confidence
+  const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
 
   // EO shield bonus: 0.1 EV per 15% EO for high-EO players (>50%)
   // Example: 60% EO = (60/15) * 0.1 = 0.4, 75% EO = (75/15) * 0.1 = 0.5

@@ -22,12 +22,11 @@ function calculateTolerance(eoGap: number, settings: { captaincyEoRate: number; 
   return Math.min(settings.captaincyEoCap, tolerance);
 }
 
-// Calculate Total Score: EV + capped ceiling bonus
+// Calculate Total Score: EV + ceiling bonus (P90 controls probability)
 function calculateTotalScore(player: { ev: number; ev95: number; xMins: number }): number {
   const p90 = calculateP90(player.xMins);
-  const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5; // Fixed 0.5 weight
-  const cappedBonus = Math.min(ceilingBonus, 0.5); // Capped at 0.5 EV
-  return player.ev + cappedBonus;
+  const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
+  return player.ev + ceilingBonus;
 }
 
 export default function CaptainPage() {
@@ -111,8 +110,8 @@ export default function CaptainPage() {
     const p90Alt = calculateP90(alt.xMins);
 
     // Calculate ceiling bonuses for display
-    const highEOCeilingBonus = Math.min((highEO.ev95 - highEO.ev) * p90HighEO * 0.5, 0.5);
-    const altCeilingBonus = Math.min((alt.ev95 - alt.ev) * p90Alt * 0.5, 0.5);
+    const highEOCeilingBonus = (highEO.ev95 - highEO.ev) * p90HighEO * 0.5;
+    const altCeilingBonus = (alt.ev95 - alt.ev) * p90Alt * 0.5;
 
     // Reasoning
     let reasoning = "";
