@@ -12,7 +12,6 @@ import type * as engines_calculations from "../engines/calculations.js";
 import type * as engines_captaincy from "../engines/captaincy.js";
 import type * as engines_xiOptimizer from "../engines/xiOptimizer.js";
 import type * as gameweekInputs from "../gameweekInputs.js";
-import type * as migrations_removeRminsWeight from "../migrations/removeRminsWeight.js";
 import type * as players from "../players.js";
 import type * as userSettings from "../userSettings.js";
 import type * as userSquad from "../userSquad.js";
@@ -36,7 +35,6 @@ declare const fullApi: ApiFromModules<{
   "engines/captaincy": typeof engines_captaincy;
   "engines/xiOptimizer": typeof engines_xiOptimizer;
   gameweekInputs: typeof gameweekInputs;
-  "migrations/removeRminsWeight": typeof migrations_removeRminsWeight;
   players: typeof players;
   userSettings: typeof userSettings;
   userSquad: typeof userSquad;

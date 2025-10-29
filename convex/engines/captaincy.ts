@@ -67,18 +67,26 @@ export const analyzeCaptaincy = query({
       ? { player: player2, gw: gw2, id: args.player2Id }
       : { player: player1, gw: gw1, id: args.player1Id };
 
-    // Calculate Total Scores independently
-    const highEOTotalScore = calculateTotalScore({
-      ev: highEO.gw.ev,
-      ev95: highEO.gw.ev95,
-      xMins: highEO.gw.xMins,
-    });
+    // Calculate Total Scores independently (includes EO shield at 0.1 EV per 10% EO)
+    const highEOTotalScore = calculateTotalScore(
+      {
+        ev: highEO.gw.ev,
+        ev95: highEO.gw.ev95,
+        xMins: highEO.gw.xMins,
+        eo: highEO.gw.eo,
+      },
+      settings.captaincyEoRate
+    );
 
-    const altTotalScore = calculateTotalScore({
-      ev: alt.gw.ev,
-      ev95: alt.gw.ev95,
-      xMins: alt.gw.xMins,
-    });
+    const altTotalScore = calculateTotalScore(
+      {
+        ev: alt.gw.ev,
+        ev95: alt.gw.ev95,
+        xMins: alt.gw.xMins,
+        eo: alt.gw.eo,
+      },
+      settings.captaincyEoRate
+    );
 
     // Calculate advantage gap
     const advantageGap = altTotalScore - highEOTotalScore;
@@ -98,6 +106,10 @@ export const analyzeCaptaincy = query({
     // Calculate ceiling bonuses for display
     const highEOCeilingBonus = (highEO.gw.ev95 - highEO.gw.ev) * p90HighEO * 0.5;
     const altCeilingBonus = (alt.gw.ev95 - alt.gw.ev) * p90Alt * 0.5;
+
+    // Calculate EO shields for display
+    const highEOEoShield = (highEO.gw.eo / 10) * settings.captaincyEoRate;
+    const altEoShield = (alt.gw.eo / 10) * settings.captaincyEoRate;
 
     // Make decision: Shield if advantage gap is within tolerance
     const pickHighEO = advantageGap <= tolerance;
@@ -142,6 +154,7 @@ export const analyzeCaptaincy = query({
         p90: p90HighEO,
         totalScore: highEOTotalScore,
         ceilingBonus: highEOCeilingBonus,
+        eoShield: highEOEoShield,
       },
       altPlayer: {
         id: alt.id,
@@ -153,6 +166,7 @@ export const analyzeCaptaincy = query({
         p90: p90Alt,
         totalScore: altTotalScore,
         ceilingBonus: altCeilingBonus,
+        eoShield: altEoShield,
       },
 
       // Calculation details

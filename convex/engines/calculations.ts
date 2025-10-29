@@ -69,21 +69,27 @@ export function calculateTolerance(
 
 /**
  * Calculate Total Score for captaincy decisions
- * @param player - Player with EV, EV95, xMins
- * @returns Total score (EV + ceiling bonus - variance penalty)
+ * @param player - Player with EV, EV95, xMins, EO
+ * @param eoRate - EV per 10% EO (default: 0.1 for captaincy)
+ * @returns Total score (EV + ceiling bonus + EO shield - variance penalty)
  *
- * Formula: EV + (EV95 - EV) × P90 × 0.5 - variancePenalty
- * P90 controls ceiling probability, variance penalty accounts for xMins uncertainty
+ * Formula: EV + (EV95 - EV) × P90 × 0.5 + (EO/10 × eoRate) - variancePenalty
+ * P90 controls ceiling probability, EO shield rewards ownership, variance penalty accounts for xMins uncertainty
  */
-export function calculateTotalScore(player: {
-  ev: number;
-  ev95: number;
-  xMins: number;
-}): number {
+export function calculateTotalScore(
+  player: {
+    ev: number;
+    ev95: number;
+    xMins: number;
+    eo: number;
+  },
+  eoRate: number = 0.1
+): number {
   const p90 = calculateP90(player.xMins);
   const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
+  const eoShield = (player.eo / 10) * eoRate;
   const variancePenalty = calculateVariancePenalty(player.xMins);
-  return player.ev + ceilingBonus - variancePenalty;
+  return player.ev + ceilingBonus + eoShield - variancePenalty;
 }
 
 /**

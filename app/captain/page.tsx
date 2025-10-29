@@ -33,12 +33,13 @@ function calculateTolerance(eoGap: number, settings: { captaincyEoRate: number; 
   return Math.min(settings.captaincyEoCap, tolerance);
 }
 
-// Calculate Total Score: EV + ceiling bonus - variance penalty
-function calculateTotalScore(player: { ev: number; ev95: number; xMins: number }): number {
+// Calculate Total Score: EV + ceiling bonus + EO shield - variance penalty
+function calculateTotalScore(player: { ev: number; ev95: number; xMins: number; eo: number }, eoRate: number): number {
   const p90 = calculateP90(player.xMins);
   const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
+  const eoShield = (player.eo / 10) * eoRate;
   const variancePenalty = calculateVariancePenalty(player.xMins);
-  return player.ev + ceilingBonus - variancePenalty;
+  return player.ev + ceilingBonus + eoShield - variancePenalty;
 }
 
 export default function CaptainPage() {
@@ -98,9 +99,9 @@ export default function CaptainPage() {
     const highEO = isP1HighEO ? p1 : p2;
     const alt = isP1HighEO ? p2 : p1;
 
-    // Calculate Total Scores independently
-    const highEOTotalScore = calculateTotalScore(highEO);
-    const altTotalScore = calculateTotalScore(alt);
+    // Calculate Total Scores independently (includes EO shield at 0.1 EV per 10% EO)
+    const highEOTotalScore = calculateTotalScore(highEO, settings.captaincyEoRate);
+    const altTotalScore = calculateTotalScore(alt, settings.captaincyEoRate);
 
     // Calculate advantage gap
     const advantageGap = altTotalScore - highEOTotalScore;
@@ -125,6 +126,10 @@ export default function CaptainPage() {
     const highEOCeilingBonus = (highEO.ev95 - highEO.ev) * p90HighEO * 0.5;
     const altCeilingBonus = (alt.ev95 - alt.ev) * p90Alt * 0.5;
 
+    // Calculate EO shields for display
+    const highEOEoShield = (highEO.eo / 10) * settings.captaincyEoRate;
+    const altEoShield = (alt.eo / 10) * settings.captaincyEoRate;
+
     // Reasoning
     let reasoning = "";
     if (pickHighEO) {
@@ -144,8 +149,8 @@ export default function CaptainPage() {
     setAnalysis({
       recommendedPlayer: recommendedPlayer.name,
       pickHighEO,
-      highEOPlayer: { ...highEO, p90: p90HighEO, totalScore: highEOTotalScore, ceilingBonus: highEOCeilingBonus },
-      altPlayer: { ...alt, p90: p90Alt, totalScore: altTotalScore, ceilingBonus: altCeilingBonus },
+      highEOPlayer: { ...highEO, p90: p90HighEO, totalScore: highEOTotalScore, ceilingBonus: highEOCeilingBonus, eoShield: highEOEoShield },
+      altPlayer: { ...alt, p90: p90Alt, totalScore: altTotalScore, ceilingBonus: altCeilingBonus, eoShield: altEoShield },
       eoGap,
       tolerance,
       evGapRaw,
@@ -449,6 +454,10 @@ export default function CaptainPage() {
                         <span className="text-muted-foreground">Ceiling Bonus:</span>
                         <span className="text-green-400">+{analysis.highEOPlayer.ceilingBonus.toFixed(2)}</span>
                       </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">EO Shield:</span>
+                        <span className="text-green-400">+{analysis.highEOPlayer.eoShield.toFixed(2)}</span>
+                      </div>
                       <div className="flex justify-between font-medium">
                         <span>Total:</span>
                         <span>{analysis.highEOPlayer.totalScore.toFixed(2)}</span>
@@ -468,6 +477,10 @@ export default function CaptainPage() {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Ceiling Bonus:</span>
                         <span className="text-green-400">+{analysis.altPlayer.ceilingBonus.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">EO Shield:</span>
+                        <span className="text-green-400">+{analysis.altPlayer.eoShield.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between font-medium">
                         <span>Total:</span>
