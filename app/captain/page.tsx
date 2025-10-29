@@ -1,144 +1,273 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Id } from "@/convex/_generated/dataModel";
+
+// Import the calculation functions directly
+function calculateP90(xMins: number): number {
+  if (xMins >= 88) return 1.0;
+  if (xMins >= 85) return 0.7;
+  if (xMins >= 81) return 0.4;
+  return 0.0;
+}
+
+function calculateTolerance(eoGap: number): number {
+  const tolerance = (eoGap / 10) * 0.1;
+  return Math.min(1.0, tolerance);
+}
+
+function calculateRMinsSurcharge(
+  highEO: { ev95: number; xMins: number },
+  alt: { ev95: number; xMins: number }
+): number {
+  const highEOUpside = highEO.ev95 * calculateP90(highEO.xMins);
+  const altUpside = alt.ev95 * calculateP90(alt.xMins);
+  const surcharge = 0.5 * Math.max(0, highEOUpside - altUpside);
+  return surcharge;
+}
 
 export default function CaptainPage() {
-  const [currentGameweek, setCurrentGameweek] = useState(10);
-  const [player1Id, setPlayer1Id] = useState<Id<"players"> | null>(null);
-  const [player2Id, setPlayer2Id] = useState<Id<"players"> | null>(null);
+  const [player1, setPlayer1] = useState({
+    name: "",
+    ev: "",
+    ev95: "",
+    xMins: "",
+    eo: "",
+  });
 
-  // Queries
-  const squad = useQuery(api.userSquad.getSquad, { gameweek: currentGameweek });
-  const analysis = useQuery(
-    api.engines.captaincy.analyzeCaptaincy,
-    player1Id && player2Id
-      ? { gameweek: currentGameweek, player1Id, player2Id }
-      : "skip"
-  );
+  const [player2, setPlayer2] = useState({
+    name: "",
+    ev: "",
+    ev95: "",
+    xMins: "",
+    eo: "",
+  });
+
+  const [analysis, setAnalysis] = useState<any>(null);
+
+  const handleAnalyze = () => {
+    // Validate inputs
+    if (!player1.name || !player2.name) {
+      alert("Please enter both player names");
+      return;
+    }
+
+    const p1 = {
+      name: player1.name,
+      ev: parseFloat(player1.ev) || 0,
+      ev95: parseFloat(player1.ev95) || 0,
+      xMins: parseInt(player1.xMins) || 0,
+      eo: parseFloat(player1.eo) || 0,
+    };
+
+    const p2 = {
+      name: player2.name,
+      ev: parseFloat(player2.ev) || 0,
+      ev95: parseFloat(player2.ev95) || 0,
+      xMins: parseInt(player2.xMins) || 0,
+      eo: parseFloat(player2.eo) || 0,
+    };
+
+    // Identify high-EO player
+    const isP1HighEO = p1.eo >= p2.eo;
+    const highEO = isP1HighEO ? p1 : p2;
+    const alt = isP1HighEO ? p2 : p1;
+
+    // Calculate
+    const eoGap = highEO.eo - alt.eo;
+    const tolerance = calculateTolerance(eoGap);
+    const evGapRaw = alt.ev - highEO.ev;
+    const p90HighEO = calculateP90(highEO.xMins);
+    const p90Alt = calculateP90(alt.xMins);
+    const rMinsSurcharge = calculateRMinsSurcharge(highEO, alt);
+    const xMinsPenalty = alt.xMins < 70 ? 0.3 : 0;
+    const evGapEffective = evGapRaw + rMinsSurcharge + xMinsPenalty;
+
+    // Decision
+    const pickHighEO = evGapEffective <= tolerance;
+    const recommendedPlayer = pickHighEO ? highEO : alt;
+    const captainBleed = pickHighEO ? Math.max(0, evGapEffective) : 0;
+
+    // Reasoning
+    let reasoning = "";
+    if (pickHighEO) {
+      reasoning = `EV gap effective (${evGapEffective.toFixed(
+        2
+      )}) ≤ tolerance (${tolerance.toFixed(2)}) → Shield ${
+        recommendedPlayer.name
+      } (${recommendedPlayer.eo.toFixed(1)}% EO)`;
+    } else {
+      reasoning = `EV gap effective (${evGapEffective.toFixed(
+        2
+      )}) > tolerance (${tolerance.toFixed(2)}) → Chase ${
+        recommendedPlayer.name
+      } (${recommendedPlayer.ev.toFixed(1)} EV)`;
+    }
+
+    if (rMinsSurcharge > 0.1) {
+      reasoning += ` | rMins surcharge: ${rMinsSurcharge.toFixed(2)} EV`;
+    }
+    if (xMinsPenalty > 0) {
+      reasoning += ` | xMins penalty: ${xMinsPenalty.toFixed(2)} EV`;
+    }
+
+    setAnalysis({
+      recommendedPlayer: recommendedPlayer.name,
+      pickHighEO,
+      highEOPlayer: { ...highEO, p90: p90HighEO },
+      altPlayer: { ...alt, p90: p90Alt },
+      eoGap,
+      tolerance,
+      evGapRaw,
+      rMinsSurcharge,
+      xMinsPenalty,
+      evGapEffective,
+      captainBleed,
+      reasoning,
+    });
+  };
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold mb-2">Captain Decision</h1>
         <p className="text-muted-foreground">
-          Compare two captain options and get a data-driven recommendation based on your risk profile.
+          Enter stats for 2 captain options and get instant recommendation.
         </p>
       </div>
 
-      {/* Gameweek Selector */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <Label htmlFor="gameweek">Gameweek:</Label>
-            <Select
-              value={currentGameweek.toString()}
-              onValueChange={(value) => {
-                setCurrentGameweek(parseInt(value));
-                setPlayer1Id(null);
-                setPlayer2Id(null);
-              }}
-            >
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 38 }, (_, i) => i + 1).map((gw) => (
-                  <SelectItem key={gw} value={gw.toString()}>
-                    GW {gw}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Player Selection */}
+      {/* Input Form */}
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Captain Option 1</CardTitle>
-            <CardDescription>Select first captain candidate</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Select
-              value={player1Id || ""}
-              onValueChange={(value) => setPlayer1Id(value as Id<"players">)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a player" />
-              </SelectTrigger>
-              <SelectContent>
-                {squad
-                  ?.filter((p) => p.playerId !== player2Id)
-                  .map((player) => (
-                    <SelectItem key={player.playerId} value={player.playerId}>
-                      {player.position} - {player.playerName}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Player Name</Label>
+              <Input
+                placeholder="e.g., Erling Haaland"
+                value={player1.name}
+                onChange={(e) => setPlayer1({ ...player1, name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>EV</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="5.7"
+                  value={player1.ev}
+                  onChange={(e) => setPlayer1({ ...player1, ev: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>EV95</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="16.8"
+                  value={player1.ev95}
+                  onChange={(e) => setPlayer1({ ...player1, ev95: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>xMins</Label>
+                <Input
+                  type="number"
+                  placeholder="85"
+                  value={player1.xMins}
+                  onChange={(e) => setPlayer1({ ...player1, xMins: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>EO%</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="68.5"
+                  value={player1.eo}
+                  onChange={(e) => setPlayer1({ ...player1, eo: e.target.value })}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle>Captain Option 2</CardTitle>
-            <CardDescription>Select second captain candidate</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Select
-              value={player2Id || ""}
-              onValueChange={(value) => setPlayer2Id(value as Id<"players">)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a player" />
-              </SelectTrigger>
-              <SelectContent>
-                {squad
-                  ?.filter((p) => p.playerId !== player1Id)
-                  .map((player) => (
-                    <SelectItem key={player.playerId} value={player.playerId}>
-                      {player.position} - {player.playerName}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Player Name</Label>
+              <Input
+                placeholder="e.g., Bruno Fernandes"
+                value={player2.name}
+                onChange={(e) => setPlayer2({ ...player2, name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>EV</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="6.2"
+                  value={player2.ev}
+                  onChange={(e) => setPlayer2({ ...player2, ev: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>EV95</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="16.8"
+                  value={player2.ev95}
+                  onChange={(e) => setPlayer2({ ...player2, ev95: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>xMins</Label>
+                <Input
+                  type="number"
+                  placeholder="89"
+                  value={player2.xMins}
+                  onChange={(e) => setPlayer2({ ...player2, xMins: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>EO%</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  placeholder="16.8"
+                  value={player2.eo}
+                  onChange={(e) => setPlayer2({ ...player2, eo: e.target.value })}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Analysis Results */}
-      {!player1Id || !player2Id ? (
-        <Card>
-          <CardContent className="py-12">
-            <p className="text-center text-muted-foreground">
-              Select two players above to see captain recommendation
-            </p>
-          </CardContent>
-        </Card>
-      ) : !analysis ? (
-        <Card>
-          <CardContent className="py-12">
-            <p className="text-center text-muted-foreground">
-              Loading analysis... Make sure both players have stats entered for this gameweek.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
+      <div className="flex justify-center">
+        <Button size="lg" onClick={handleAnalyze} className="w-full md:w-auto">
+          Analyze Captain Choice
+        </Button>
+      </div>
+
+      {/* Results */}
+      {analysis && (
         <>
           {/* Recommendation Card */}
           <Card className="border-2 border-primary">
@@ -148,9 +277,7 @@ export default function CaptainPage() {
             <CardContent className="space-y-4">
               <div
                 className={`p-6 rounded-lg ${
-                  analysis.pickHighEO
-                    ? "bg-green-50 dark:bg-green-950"
-                    : "bg-blue-50 dark:bg-blue-950"
+                  analysis.pickHighEO ? "bg-green-500/10" : "bg-blue-500/10"
                 }`}
               >
                 <div className="text-center">
@@ -158,18 +285,18 @@ export default function CaptainPage() {
                     {analysis.pickHighEO ? "🛡️ Shield High-EO" : "🎯 Chase EV"}
                   </p>
                   <h2 className="text-3xl font-bold mb-2">
-                    Captain: {analysis.recommendedPlayerName}
+                    Captain: {analysis.recommendedPlayer}
                   </h2>
                   <p className="text-sm mt-4 font-medium">{analysis.reasoning}</p>
                 </div>
               </div>
 
               {analysis.captainBleed > 0 && (
-                <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-md">
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                <div className="bg-amber-500/10 p-4 rounded-md border border-amber-500/20">
+                  <p className="text-sm font-medium text-amber-400">
                     ⚠️ Captain Bleed: {analysis.captainBleed.toFixed(2)} EV
                   </p>
-                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  <p className="text-xs text-amber-400/80 mt-1">
                     You're protecting rank at a slight EV cost
                   </p>
                 </div>
@@ -187,7 +314,7 @@ export default function CaptainPage() {
               <CardContent>
                 <div className="space-y-4">
                   <div>
-                    <h3 className="font-semibold mb-2 text-green-600 dark:text-green-400">
+                    <h3 className="font-semibold mb-2 text-green-400">
                       High-EO: {analysis.highEOPlayer.name}
                     </h3>
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -224,10 +351,10 @@ export default function CaptainPage() {
                     </div>
                   </div>
 
-                  <hr />
+                  <hr className="border-border" />
 
                   <div>
-                    <h3 className="font-semibold mb-2 text-blue-600 dark:text-blue-400">
+                    <h3 className="font-semibold mb-2 text-blue-400">
                       Alt: {analysis.altPlayer.name}
                     </h3>
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -286,7 +413,7 @@ export default function CaptainPage() {
                       {analysis.tolerance.toFixed(2)} EV
                     </span>
                   </div>
-                  <hr />
+                  <hr className="border-border" />
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">EV Gap (Raw):</span>
                     <span className="font-medium">
@@ -306,12 +433,12 @@ export default function CaptainPage() {
                       <span className="text-muted-foreground">
                         xMins Penalty:
                       </span>
-                      <span className="font-medium text-amber-600">
+                      <span className="font-medium text-amber-400">
                         +{analysis.xMinsPenalty.toFixed(2)} EV
                       </span>
                     </div>
                   )}
-                  <hr />
+                  <hr className="border-border" />
                   <div className="flex justify-between font-semibold">
                     <span>EV Gap (Effective):</span>
                     <span>{analysis.evGapEffective.toFixed(2)} EV</span>
@@ -321,8 +448,8 @@ export default function CaptainPage() {
                 <div
                   className={`mt-4 p-3 rounded-md ${
                     analysis.evGapEffective <= analysis.tolerance
-                      ? "bg-green-50 dark:bg-green-950"
-                      : "bg-blue-50 dark:bg-blue-950"
+                      ? "bg-green-500/10 border border-green-500/20"
+                      : "bg-blue-500/10 border border-blue-500/20"
                   }`}
                 >
                   <p className="text-xs font-medium text-center">
