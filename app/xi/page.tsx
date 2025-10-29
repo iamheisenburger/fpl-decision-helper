@@ -22,11 +22,16 @@ function calculateRAEV(player: {
   eo: number;
 }): number {
   const p90 = calculateP90(player.xMins);
-  const playerUpside = player.ev95 * p90;
 
-  // Simple RAEV = EV + small EO bonus
-  const eoBonus = player.eo > 50 ? 0.1 : 0;
-  return player.ev + eoBonus;
+  // Ceiling bonus: reward EV95 upside weighted by minutes confidence (P90)
+  // Same 0.5 weight as captaincy rMins surcharge
+  const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
+
+  // EO shield bonus: protect template players (consistent with tolerance logic)
+  // At 60% EO = 0.3 EV shield, at 70% EO = 0.35 EV shield
+  const eoShield = player.eo > 50 ? (player.eo / 100) * 0.5 : 0;
+
+  return player.ev + ceilingBonus + eoShield;
 }
 
 type Position = "GK" | "DEF" | "MID" | "FWD";
