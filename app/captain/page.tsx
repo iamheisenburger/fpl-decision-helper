@@ -102,9 +102,9 @@ export default function CaptainPage() {
     const pickHighEO = advantageGap <= tolerance;
     const recommendedPlayer = pickHighEO ? highEO : alt;
 
-    // Captain bleed: EV sacrificed when shielding high-EO
+    // Captain bleed: Total Score (RAEV) sacrificed when shielding high-EO
     const evGapRaw = alt.ev - highEO.ev;
-    const captainBleed = pickHighEO ? Math.max(0, evGapRaw) : 0;
+    const captainBleed = pickHighEO ? Math.max(0, advantageGap) : 0;
 
     // P90 values for display
     const p90HighEO = calculateP90(highEO.xMins);
