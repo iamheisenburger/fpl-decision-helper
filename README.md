@@ -1,38 +1,27 @@
 # FPL Decision Helper
 
-An EO-aware Fantasy Premier League assistant that helps you make smart captaincy, XI, and transfer decisions by balancing **Expected Value (EV)**, **Expected Ownership (EO)**, and **Realized Minutes (rMins)** according to your risk profile.
+An EO-aware Fantasy Premier League assistant that helps you make smart captaincy and XI decisions by balancing **Expected Value (EV)**, **Expected Ownership (EO)**, and **Realized Minutes (rMins)**.
 
 Built for FPL managers competing for top ranks while managing rank-risk through intelligent EO decisions.
 
 ## 🎯 Features
 
 ### **Captain Decision Engine**
-- Compare two captain candidates side-by-side
+- Manual input for 2 captain candidates
 - Tolerance-based decision logic (0.1 EV per 10% EO gap, capped at 1.0 EV)
 - Accounts for rMins upside (EV95 × P90)
 - Shows full breakdown: EO gap, tolerance, EV gap (raw vs effective), reasoning
 - Visual indicators: Shield high-EO (green) vs Chase EV (blue)
+- Instant client-side calculations
 
 ### **XI Optimizer**
+- Manual input for 15-player squad
 - Smart Greedy + Local Search algorithm
-- Maximizes Risk-Adjusted EV (RAEV) = EV + EO shield bonus - rMins surcharge
-- Formation flexibility (any, 4-4-2, 3-5-2, 4-3-3, 3-4-3, 5-4-1, 5-3-2)
-- Shows optimized starting XI, bench, and top 3 pivot options
-- Displays total RAEV, EV, and XI bleed
-
-### **Data Management**
-- **Player Database**: Add/manage FPL players (name, position, price, team)
-- **Squad Selection**: Pick your 15-man squad for each gameweek
-- **Weekly Stats**: Enter EV, EV95, xMins, EO for each player
-- All-in-one interface - no external spreadsheets needed
-
-### **Risk Profile Settings**
-Customize your tolerance levels:
-- Captaincy EO rate & cap
-- XI EO rate & cap
-- rMins weight
-- xMins penalty
-- Weekly bleed budget (default: 0.8 EV)
+- Maximizes Risk-Adjusted EV (RAEV) = EV + EO shield bonus
+- Formation flexibility (4-4-2, 3-5-2, 4-3-3, 3-4-3, 5-4-1, 5-3-2)
+- Shows optimized starting XI, bench, and total RAEV
+- Quick Fill button for testing with sample data
+- Instant client-side optimization
 
 ## 🚀 Tech Stack
 
@@ -64,10 +53,9 @@ npm run dev
 
 ## 📖 Usage Guide
 
-1. **Settings**: Configure your risk profile
-2. **Data Entry** → Add players, select squad, enter weekly stats
-3. **Captain**: Compare candidates and get recommendation
-4. **XI**: Optimize your starting lineup
+1. **Captain**: Enter stats for 2 captain candidates and get instant recommendation
+2. **XI**: Enter your 15-player squad stats and optimize your starting lineup
+3. **Settings**: Configure your risk profile (optional - currently uses default values)
 
 ## 🧮 Core Formulas
 
