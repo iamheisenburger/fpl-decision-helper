@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 export default function AdminPage() {
   const [syncStatus, setSyncStatus] = useState("");
   const [contextStatus, setContextStatus] = useState("");
+  const [fixtureStatus, setFixtureStatus] = useState("");
   const [predictionStatus, setPredictionStatus] = useState("");
   const [currentGameweek, setCurrentGameweek] = useState<number | null>(null);
   const [nextGameweek, setNextGameweek] = useState<number | null>(null);
@@ -17,6 +18,7 @@ export default function AdminPage() {
 
   const syncPlayers = useAction(api.dataIngestion.syncPlayers);
   const syncGameweekContext = useAction(api.dataIngestion.syncGameweekContext);
+  const syncFixtures = useAction(api.fixtures.syncFixtures);
   const generateAllPredictions = useAction(api.engines.multiWeekPredictor.generateAllPlayersMultiWeek);
   const getCurrentGW = useAction(api.utils.gameweekDetection.getCurrentGameweek);
   const getNextGW = useAction(api.utils.gameweekDetection.getNextGameweek);
@@ -72,6 +74,23 @@ export default function AdminPage() {
       }
     } catch (error) {
       setContextStatus(`❌ Error: ${error}`);
+    }
+  };
+
+  const handleSyncFixtures = async () => {
+    setFixtureStatus("Syncing fixtures from FPL API...");
+    try {
+      const result = await syncFixtures({});
+      if (result.success) {
+        setFixtureStatus(
+          `✅ Synced fixtures successfully!\n` +
+          `New: ${result.synced}, Updated: ${result.updated}, Total: ${result.total}`
+        );
+      } else {
+        setFixtureStatus(`❌ Error: ${result.error}`);
+      }
+    } catch (error) {
+      setFixtureStatus(`❌ Error: ${error}`);
     }
   };
 
@@ -181,6 +200,20 @@ export default function AdminPage() {
             {contextStatus && (
               <div className="text-sm">
                 {contextStatus}
+              </div>
+            )}
+
+            <div className="flex items-center gap-4 mt-4">
+              <Button onClick={handleSyncFixtures} className="bg-purple-600 hover:bg-purple-700">
+                Sync Fixtures with FDR
+              </Button>
+              <Badge variant="outline">
+                Populates fixture difficulty ratings (1-5)
+              </Badge>
+            </div>
+            {fixtureStatus && (
+              <div className="text-sm whitespace-pre-line">
+                {fixtureStatus}
               </div>
             )}
 
