@@ -14,10 +14,11 @@ export const getPlayerAppearances = query({
       .withIndex("by_player_season", (q) => q.eq("playerId", args.playerId));
 
     if (args.season) {
+      const season = args.season;
       query = ctx.db
         .query("appearances")
         .withIndex("by_player_season", (q) =>
-          q.eq("playerId", args.playerId).eq("season", args.season)
+          q.eq("playerId", args.playerId).eq("season", season)
         );
     }
 

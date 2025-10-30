@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +12,8 @@ export default function AdminPage() {
   const [contextStatus, setContextStatus] = useState("");
   const [predictionStatus, setPredictionStatus] = useState("");
 
-  const syncPlayers = useMutation(api.dataIngestion.syncPlayers);
-  const syncGameweekContext = useMutation(api.dataIngestion.syncGameweekContext);
+  const syncPlayers = useAction(api.dataIngestion.syncPlayers);
+  const syncGameweekContext = useAction(api.dataIngestion.syncGameweekContext);
 
   const allPlayers = useQuery(api.players.getAllPlayers);
   const settings = useQuery(api.userSettings.getSettings);

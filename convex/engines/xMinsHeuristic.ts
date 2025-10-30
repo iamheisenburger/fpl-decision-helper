@@ -68,7 +68,7 @@ export const predictWithHeuristic = query({
       limit: recencyWindow,
     });
 
-    const startsInWindow = allAppearances.filter((a) => a.started).length;
+    const startsInWindow = allAppearances.filter((a: any) => a.started).length;
     const startProb = allAppearances.length > 0
       ? startsInWindow / Math.min(allAppearances.length, recencyWindow)
       : 0.5;
@@ -118,7 +118,7 @@ export const batchPredictHeuristic = query({
     recencyWindow: v.optional(v.number()),
     minHealthyStarts: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     const predictions = await Promise.all(
       args.playerIds.map((playerId) =>
         ctx.runQuery(api.engines.xMinsHeuristic.predictWithHeuristic, {
@@ -130,7 +130,7 @@ export const batchPredictHeuristic = query({
       )
     );
 
-    return predictions.filter((p): p is HeuristicPrediction => p !== null);
+    return predictions.filter((p: any): p is HeuristicPrediction => p !== null);
   },
 });
 
@@ -255,7 +255,7 @@ export const calculatePositionPriors = query({
     position: v.union(v.literal("GK"), v.literal("DEF"), v.literal("MID"), v.literal("FWD")),
     gameweek: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     // Get all appearances for this position in recent gameweeks
     const recentGWs = [args.gameweek - 1, args.gameweek - 2, args.gameweek - 3].filter(
       (gw) => gw > 0

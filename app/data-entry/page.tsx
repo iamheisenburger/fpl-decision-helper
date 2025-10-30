@@ -129,7 +129,7 @@ export default function DataEntryPage() {
   };
 
   // Get squad player IDs for filtering
-  const squadPlayerIds = squad?.map((s) => s.playerId) || [];
+  const squadPlayerIds = squad?.map((s: any) => s.playerId) || [];
 
   return (
     <div className="space-y-8">
@@ -259,7 +259,7 @@ export default function DataEntryPage() {
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {allPlayers?.map((player) => (
+                    {allPlayers?.map((player: any) => (
                       <div
                         key={player._id}
                         className="flex items-center justify-between p-3 border rounded-md"
@@ -322,7 +322,7 @@ export default function DataEntryPage() {
                     {/* Group by position */}
                     {["GK", "DEF", "MID", "FWD"].map((position) => {
                       const positionPlayers = squad.filter(
-                        (s) => s.position === position
+                        (s: any) => s.position === position
                       );
                       if (positionPlayers.length === 0) return null;
 
@@ -331,7 +331,7 @@ export default function DataEntryPage() {
                           <h3 className="font-semibold text-sm text-muted-foreground mt-4">
                             {position} ({positionPlayers.length})
                           </h3>
-                          {positionPlayers.map((player) => (
+                          {positionPlayers.map((player: any) => (
                             <div
                               key={player._id}
                               className="flex items-center justify-between p-3 border rounded-md"
@@ -387,7 +387,7 @@ export default function DataEntryPage() {
                     setSelectedPlayerId(value as Id<"players">);
                     // Load existing stats if available
                     const existing = gameweekInputs?.find(
-                      (gi) => gi.playerId === value
+                      (gi: any) => gi.playerId === value
                     );
                     if (existing) {
                       setWeeklyStats({
@@ -405,7 +405,7 @@ export default function DataEntryPage() {
                     <SelectValue placeholder="Select a player from your squad" />
                   </SelectTrigger>
                   <SelectContent>
-                    {squad?.map((player) => (
+                    {squad?.map((player: any) => (
                       <SelectItem key={player.playerId} value={player.playerId}>
                         {player.position} - {player.playerName}
                       </SelectItem>
@@ -498,7 +498,7 @@ export default function DataEntryPage() {
                   </p>
                 ) : (
                   <div className="space-y-2">
-                    {gameweekInputs.map((input) => (
+                    {gameweekInputs.map((input: any) => (
                       <div
                         key={input._id}
                         className="flex items-center justify-between p-3 border rounded-md text-sm"

@@ -25,7 +25,7 @@ export default function MinutesLabPage() {
     api.xmins.getMultiplePlayersXMins,
     squad
       ? {
-          playerIds: squad.map((p) => p.player._id),
+          playerIds: squad.map((p: any) => p.player._id),
           gameweek: selectedGameweek,
         }
       : "skip"
@@ -140,9 +140,9 @@ export default function MinutesLabPage() {
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Your Squad (GW{selectedGameweek})</h2>
 
-        {squad.map((playerSquad) => {
+        {squad.map((playerSquad: any) => {
           const player = playerSquad.player;
-          const prediction = xMinsPredictions?.find((p) => p.playerId === player._id)?.xmins;
+          const prediction = xMinsPredictions?.find((p: any) => p.playerId === player._id)?.xmins;
 
           return (
             <Card key={player._id}>

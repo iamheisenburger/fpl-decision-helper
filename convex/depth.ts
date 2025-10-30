@@ -132,10 +132,11 @@ export const deletePlayerDepth = mutation({
       .withIndex("by_player_gameweek", (q) => q.eq("playerId", args.playerId));
 
     if (args.gameweek !== undefined) {
+      const gameweek = args.gameweek;
       query = ctx.db
         .query("depth")
         .withIndex("by_player_gameweek", (q) =>
-          q.eq("playerId", args.playerId).eq("gameweek", args.gameweek)
+          q.eq("playerId", args.playerId).eq("gameweek", gameweek)
         );
     }
 

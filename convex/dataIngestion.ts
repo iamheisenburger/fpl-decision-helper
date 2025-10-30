@@ -109,7 +109,7 @@ export const ingestPlayerHistory = action({
     playerName: v.string(),
     season: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     try {
       const season = args.season || getCurrentSeason();
 
@@ -144,7 +144,7 @@ export const ingestPlayerHistory = action({
 
       // Process match history
       for (const match of data.history) {
-        const opponent = teamMap.get(match.opponent_team) || "Unknown";
+        const opponent = (teamMap.get(match.opponent_team) || "Unknown") as string;
 
         // Detect injury exit heuristically
         const earlySubOff = match.minutes > 0 && match.minutes < 60;
@@ -162,7 +162,7 @@ export const ingestPlayerHistory = action({
           date: new Date(match.kickoff_time).getTime(),
           competition: "Premier League",
           opponent,
-          homeAway: match.was_home ? "home" : "away",
+          homeAway: (match.was_home ? "home" : "away") as "home" | "away",
           fplGameweekId: match.fixture,
         };
 
@@ -211,8 +211,8 @@ export const ingestAllPlayersHistory = action({
       const players = await ctx.runQuery(api.players.getAllPlayers);
 
       const results = {
-        success: 0,
-        failed: 0,
+        successCount: 0,
+        failedCount: 0,
         errors: [] as Array<{ playerName: string; error: string }>,
       };
 
@@ -221,13 +221,13 @@ export const ingestAllPlayersHistory = action({
         const batch = players.slice(i, i + batchSize);
 
         await Promise.all(
-          batch.map(async (player) => {
+          batch.map(async (player: any) => {
             try {
               // Note: We need to map Convex player to FPL ID
               // For now, we'll skip this and let user manually trigger
-              results.success++;
+              results.successCount++;
             } catch (error) {
-              results.failed++;
+              results.failedCount++;
               results.errors.push({
                 playerName: player.name,
                 error: error instanceof Error ? error.message : String(error),
