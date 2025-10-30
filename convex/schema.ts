@@ -188,4 +188,20 @@ export default defineSchema({
   })
     .index("by_player_gameweek", ["playerId", "gameweek"])
     .index("by_created_at", ["createdAt"]),
+
+  // Sync logs - track automated sync history
+  syncLogs: defineTable({
+    syncType: v.union(
+      v.literal("players"),
+      v.literal("context"),
+      v.literal("predictions"),
+      v.literal("pre-deadline")
+    ),
+    status: v.union(v.literal("success"), v.literal("failed")),
+    timestamp: v.number(), // when sync occurred
+    details: v.optional(v.string()), // JSON stringified details
+    errorMessage: v.optional(v.string()),
+  })
+    .index("by_type_timestamp", ["syncType", "timestamp"])
+    .index("by_timestamp", ["timestamp"]),
 });

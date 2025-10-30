@@ -24,6 +24,7 @@ export default function AdminPage() {
 
   const allPlayers = useQuery(api.players.getAllPlayers);
   const settings = useQuery(api.userSettings.getSettings);
+  const latestSyncs = useQuery(api.syncLogs.getLatestSyncs);
 
   // Fetch current gameweek on load
   useEffect(() => {
@@ -228,6 +229,64 @@ export default function AdminPage() {
                 <span>Min Healthy Starts:</span>
                 <Badge variant="outline">{settings?.xMinsMinHealthyStarts || 5}</Badge>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Last Sync Times */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Last Sync Times</CardTitle>
+            <CardDescription>
+              Track when automated jobs last ran
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 text-sm">
+              {latestSyncs?.map((sync) => {
+                const lastSync = sync.lastSync;
+                const timeSince = lastSync
+                  ? Math.round((Date.now() - lastSync.timestamp) / (1000 * 60))
+                  : null;
+
+                return (
+                  <div key={sync.syncType} className="flex justify-between items-center">
+                    <div>
+                      <div className="font-medium capitalize">
+                        {sync.syncType === "pre-deadline"
+                          ? "Pre-Deadline Refresh"
+                          : `${sync.syncType.charAt(0).toUpperCase() + sync.syncType.slice(1)} Sync`}
+                      </div>
+                      {lastSync && (
+                        <div className="text-xs text-muted-foreground">
+                          {timeSince !== null && timeSince < 60
+                            ? `${timeSince} minutes ago`
+                            : timeSince !== null && timeSince < 1440
+                            ? `${Math.round(timeSince / 60)} hours ago`
+                            : timeSince !== null
+                            ? `${Math.round(timeSince / 1440)} days ago`
+                            : "Never"}
+                        </div>
+                      )}
+                    </div>
+                    {lastSync ? (
+                      <Badge
+                        variant={lastSync.status === "success" ? "default" : "destructive"}
+                        className={lastSync.status === "success" ? "bg-green-600" : ""}
+                      >
+                        {lastSync.status}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">Never Run</Badge>
+                    )}
+                  </div>
+                );
+              })}
+              {!latestSyncs || latestSyncs.length === 0 && (
+                <div className="text-muted-foreground text-center py-4">
+                  No sync history yet. Cron jobs will start running automatically.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
