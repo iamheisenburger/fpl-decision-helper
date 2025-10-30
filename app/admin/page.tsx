@@ -10,12 +10,14 @@ import { Badge } from "@/components/ui/badge";
 export default function AdminPage() {
   const [syncStatus, setSyncStatus] = useState("");
   const [contextStatus, setContextStatus] = useState("");
+  const [predictionStatus, setPredictionStatus] = useState("");
   const [currentGameweek, setCurrentGameweek] = useState<number | null>(null);
   const [nextGameweek, setNextGameweek] = useState<number | null>(null);
   const [deadline, setDeadline] = useState<string | null>(null);
 
   const syncPlayers = useAction(api.dataIngestion.syncPlayers);
   const syncGameweekContext = useAction(api.dataIngestion.syncGameweekContext);
+  const generateAllPredictions = useAction(api.dataIngestion.generateAllPlayersPredictions);
   const getCurrentGW = useAction(api.utils.gameweekDetection.getCurrentGameweek);
   const getNextGW = useAction(api.utils.gameweekDetection.getNextGameweek);
   const getDeadline = useAction(api.utils.gameweekDetection.getGameweekDeadline);
@@ -69,6 +71,29 @@ export default function AdminPage() {
       }
     } catch (error) {
       setContextStatus(`❌ Error: ${error}`);
+    }
+  };
+
+  const handleGenerateAllPredictions = async () => {
+    if (nextGameweek === null) {
+      setPredictionStatus("❌ Loading gameweek information, please wait...");
+      return;
+    }
+
+    setPredictionStatus(`Generating predictions for all ${allPlayers?.length || 725} players... This will take ~6 minutes.`);
+    try {
+      const result = await generateAllPredictions({ gameweek: nextGameweek });
+
+      if (result.success) {
+        setPredictionStatus(
+          `✅ ${result.message}\n` +
+          `Generated: ${result.generated}, Skipped (injured): ${result.skipped}, Failed: ${result.failed}`
+        );
+      } else {
+        setPredictionStatus(`❌ Error: ${result.error}`);
+      }
+    } catch (error) {
+      setPredictionStatus(`❌ Error: ${error}`);
     }
   };
 
@@ -149,6 +174,32 @@ export default function AdminPage() {
                 {contextStatus}
               </div>
             )}
+
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={handleGenerateAllPredictions}
+                  variant="default"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Generate Predictions for ALL Players (GW{nextGameweek || "..."})
+                </Button>
+                {allPlayers && (
+                  <Badge variant="secondary">
+                    {allPlayers.length} players will be processed
+                  </Badge>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground mt-2">
+                This will generate xMins predictions for all 725 players for the next gameweek.
+                Estimated time: ~6 minutes (batches of 10 players every 2 seconds).
+              </div>
+              {predictionStatus && (
+                <div className="text-sm mt-2 whitespace-pre-line">
+                  {predictionStatus}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 

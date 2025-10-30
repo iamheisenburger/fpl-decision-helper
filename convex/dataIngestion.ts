@@ -631,6 +631,200 @@ export const syncFPLTeam = action({
   },
 });
 
+/**
+ * Generate predictions for ALL players (batch processing)
+ * This will process all 725+ players and generate xMins predictions
+ * Rate-limited to avoid API throttling
+ */
+export const generateAllPlayersPredictions = action({
+  args: {
+    gameweek: v.number(),
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<any> => {
+    try {
+      const season = getCurrentSeason();
+      const batchSize = args.batchSize || 10; // Process 10 players at a time
+
+      // Get ALL players from database
+      const allPlayers = await ctx.runQuery(api.players.getAllPlayers);
+
+      if (!allPlayers || allPlayers.length === 0) {
+        return {
+          success: false,
+          error: "No players found in database. Please sync players from FPL API first.",
+        };
+      }
+
+      const results = {
+        successCount: 0,
+        failedCount: 0,
+        skippedCount: 0, // Players skipped due to injury
+        errors: [] as Array<{ playerName: string; error: string }>,
+      };
+
+      // Get bootstrap data for team mapping
+      const bootstrapResponse = await fetch(
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      );
+      const bootstrap = await bootstrapResponse.json();
+      const teamMap = new Map(bootstrap.teams.map((t: any) => [t.id, t.name]));
+
+      // Process players in batches
+      for (let i = 0; i < allPlayers.length; i += batchSize) {
+        const batch = allPlayers.slice(i, i + batchSize);
+
+        // Process batch in parallel
+        await Promise.all(
+          batch.map(async (player: any) => {
+            try {
+              // Check if player is injured/unavailable
+              const isInjured = player.status === "i" || player.status === "u";
+              const isLowChance = player.chanceOfPlayingNextRound !== undefined &&
+                                player.chanceOfPlayingNextRound === 0;
+
+              if (isInjured || isLowChance) {
+                // Skip prediction generation for injured/unavailable players
+                // Store zero xMins directly
+                await ctx.runMutation(api.xmins.upsertXMins, {
+                  playerId: player._id,
+                  gameweek: args.gameweek,
+                  startProb: 0,
+                  xMinsStart: 0,
+                  p90: 0,
+                  source: "heuristic",
+                  flags: {
+                    injExcluded: true,
+                  },
+                });
+                results.skippedCount++;
+                return;
+              }
+
+              // Check if player has FPL ID
+              if (!player.fplId) {
+                results.failedCount++;
+                results.errors.push({
+                  playerName: player.name,
+                  error: "No FPL ID found",
+                });
+                return;
+              }
+
+              // Fetch player history from FPL API
+              const historyResponse = await fetch(
+                `https://fantasy.premierleague.com/api/element-summary/${player.fplId}/`
+              );
+
+              if (!historyResponse.ok) {
+                // Silently skip players with no history (new players, etc.)
+                results.failedCount++;
+                return;
+              }
+
+              const historyData = await historyResponse.json();
+
+              // Store historical appearances
+              const appearances = [];
+              for (const match of historyData.history) {
+                const opponent = (teamMap.get(match.opponent_team) || "Unknown") as string;
+                const earlySubOff = match.minutes > 0 && match.minutes < 60;
+                const didStart = match.starts === 1;
+                const injExit = didStart && earlySubOff;
+
+                appearances.push({
+                  playerId: player._id,
+                  gameweek: match.round,
+                  season,
+                  started: match.starts === 1,
+                  minutes: match.minutes,
+                  injExit,
+                  redCard: match.red_cards > 0,
+                  date: new Date(match.kickoff_time).getTime(),
+                  competition: "Premier League",
+                  opponent,
+                  homeAway: (match.was_home ? "home" : "away") as "home" | "away",
+                  fplGameweekId: match.fixture,
+                });
+              }
+
+              // Bulk insert appearances (if any)
+              if (appearances.length > 0) {
+                await ctx.runMutation(api.appearances.bulkInsertAppearances, {
+                  appearances,
+                });
+              }
+
+              // Generate heuristic prediction
+              const prediction = await ctx.runQuery(
+                api.engines.xMinsHeuristic.predictWithHeuristic,
+                {
+                  playerId: player._id,
+                  gameweek: args.gameweek,
+                  recencyWindow: 8,
+                }
+              );
+
+              // Skip if prediction failed
+              if (!prediction) {
+                results.failedCount++;
+                return;
+              }
+
+              // Adjust prediction for injury status
+              let adjustedPrediction = { ...prediction };
+
+              if (player.chanceOfPlayingNextRound !== undefined) {
+                const chanceMultiplier = player.chanceOfPlayingNextRound / 100;
+                adjustedPrediction.startProb *= chanceMultiplier;
+                adjustedPrediction.xMinsStart *= chanceMultiplier;
+                adjustedPrediction.p90 *= chanceMultiplier;
+              }
+
+              // Store prediction
+              await ctx.runMutation(api.xmins.upsertXMins, {
+                playerId: player._id,
+                gameweek: args.gameweek,
+                startProb: adjustedPrediction.startProb,
+                xMinsStart: adjustedPrediction.xMinsStart,
+                p90: adjustedPrediction.p90,
+                source: "heuristic",
+                flags: adjustedPrediction.flags,
+              });
+
+              results.successCount++;
+            } catch (error) {
+              results.failedCount++;
+              results.errors.push({
+                playerName: player.name,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          })
+        );
+
+        // Rate limiting between batches (2 seconds)
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+
+      return {
+        success: true,
+        total: allPlayers.length,
+        generated: results.successCount,
+        skipped: results.skippedCount,
+        failed: results.failedCount,
+        errors: results.errors.slice(0, 10), // Return first 10 errors
+        message: `Generated predictions for ${results.successCount}/${allPlayers.length} players (${results.skippedCount} injured/unavailable, ${results.failedCount} failed)`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+});
+
 // Helper function
 function getCurrentSeason(): string {
   const now = new Date();
