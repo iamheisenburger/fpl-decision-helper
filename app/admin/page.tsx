@@ -17,7 +17,7 @@ export default function AdminPage() {
 
   const syncPlayers = useAction(api.dataIngestion.syncPlayers);
   const syncGameweekContext = useAction(api.dataIngestion.syncGameweekContext);
-  const generateAllPredictions = useAction(api.dataIngestion.generateAllPlayersPredictions);
+  const generateAllPredictions = useAction(api.engines.multiWeekPredictor.generateAllPlayersMultiWeek);
   const getCurrentGW = useAction(api.utils.gameweekDetection.getCurrentGameweek);
   const getNextGW = useAction(api.utils.gameweekDetection.getNextGameweek);
   const getDeadline = useAction(api.utils.gameweekDetection.getGameweekDeadline);
@@ -76,19 +76,27 @@ export default function AdminPage() {
   };
 
   const handleGenerateAllPredictions = async () => {
-    if (nextGameweek === null) {
+    if (currentGameweek === null) {
       setPredictionStatus("❌ Loading gameweek information, please wait...");
       return;
     }
 
-    setPredictionStatus(`Generating predictions for all ${allPlayers?.length || 725} players... This will take ~6 minutes.`);
+    setPredictionStatus(
+      `Generating 14-week predictions for all ${allPlayers?.length || 725} players...\n` +
+      `This will take ~20-25 minutes (${(allPlayers?.length || 725) * 14} total predictions).`
+    );
     try {
-      const result = await generateAllPredictions({ gameweek: nextGameweek });
+      const result = await generateAllPredictions({
+        currentGameweek: currentGameweek,
+        horizonWeeks: 14,
+        batchSize: 10
+      });
 
       if (result.success) {
         setPredictionStatus(
           `✅ ${result.message}\n` +
-          `Generated: ${result.generated}, Skipped (injured): ${result.skipped}, Failed: ${result.failed}`
+          `Generated: ${result.generated} players × 14 weeks = ${result.totalPredictions || result.generated * 14} predictions\n` +
+          `Skipped: ${result.skipped}, Failed: ${result.failed}`
         );
       } else {
         setPredictionStatus(`❌ Error: ${result.error}`);
@@ -183,17 +191,18 @@ export default function AdminPage() {
                   variant="default"
                   className="bg-blue-600 hover:bg-blue-700"
                 >
-                  Generate Predictions for ALL Players (GW{nextGameweek || "..."})
+                  Generate 14-Week Predictions for ALL Players
                 </Button>
-                {allPlayers && (
+                {allPlayers && currentGameweek && (
                   <Badge variant="secondary">
-                    {allPlayers.length} players will be processed
+                    {allPlayers.length} players × 14 weeks (GW{currentGameweek + 1}-{currentGameweek + 14})
                   </Badge>
                 )}
               </div>
               <div className="text-xs text-muted-foreground mt-2">
-                This will generate xMins predictions for all 725 players for the next gameweek.
-                Estimated time: ~6 minutes (batches of 10 players every 2 seconds).
+                This will generate xMins predictions for all 725 players for the next 14 gameweeks.
+                Includes injury return timelines, gradual recovery curves, and confidence decay.
+                Estimated time: ~20-25 minutes (10,150 total predictions).
               </div>
               {predictionStatus && (
                 <div className="text-sm mt-2 whitespace-pre-line">
@@ -321,18 +330,18 @@ export default function AdminPage() {
             <div className="flex items-start gap-2">
               <Badge variant="default" className="mt-0.5">AUTO</Badge>
               <div>
-                <div className="font-medium">Weekly Prediction Generation</div>
+                <div className="font-medium">14-Week Prediction Generation</div>
                 <div className="text-muted-foreground">
-                  Runs every Saturday at 6:00 AM UTC - regenerates xMins for all 725 players
+                  Runs every Saturday at 6:00 AM UTC - regenerates 14-week xMins for all 725 players with injury timelines and recovery curves
                 </div>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <Badge variant="outline" className="mt-0.5">PENDING</Badge>
+              <Badge variant="default" className="mt-0.5 bg-green-600">LIVE</Badge>
               <div>
-                <div className="font-medium">Cron Jobs Deployment</div>
+                <div className="font-medium">Pre-Deadline Refresh</div>
                 <div className="text-muted-foreground">
-                  Will be activated in Phase 2E (next session)
+                  Runs every Friday at 12:00 PM UTC - captures last-minute team news 6.5 hours before deadline
                 </div>
               </div>
             </div>

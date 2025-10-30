@@ -101,28 +101,32 @@ export const dailyContextSync = internalAction({
 });
 
 /**
- * Generate predictions for the NEXT gameweek (called by Saturday cron)
+ * Generate 14-week predictions for ALL players (called by Saturday cron)
  *
- * Automatically detects next gameweek and generates predictions for all players.
+ * Automatically detects current gameweek and generates predictions for GW+1 through GW+14.
+ * Includes injury return timelines, gradual recovery curves, and confidence decay.
  */
 export const generatePredictionsForNextGameweek = internalAction({
   args: {},
   handler: async (ctx): Promise<void> => {
     try {
-      // Get next gameweek
-      const nextGW = await ctx.runAction(api.utils.gameweekDetection.getNextGameweek, {});
+      // Get current gameweek
+      const currentGW = await ctx.runAction(api.utils.gameweekDetection.getCurrentGameweek, {});
 
-      console.log(`[CRON] Starting prediction generation for GW${nextGW}...`);
+      console.log(`[CRON] Starting 14-week prediction generation from GW${currentGW + 1} to GW${currentGW + 14}...`);
 
-      // Generate predictions for all players
-      const result = await ctx.runAction(api.dataIngestion.generateAllPlayersPredictions, {
-        gameweek: nextGW,
+      // Generate 14-week predictions for all players
+      const result = await ctx.runAction(api.engines.multiWeekPredictor.generateAllPlayersMultiWeek, {
+        currentGameweek: currentGW,
+        horizonWeeks: 14,
+        batchSize: 10,
       });
 
       if (result.success) {
         console.log(
-          `[CRON] ✅ Prediction generation complete for GW${nextGW}:`,
-          `Generated: ${result.generated}, Skipped: ${result.skipped}, Failed: ${result.failed}`
+          `[CRON] ✅ 14-week prediction generation complete:`,
+          `Generated: ${result.generated} players × 14 weeks = ${result.totalPredictions} predictions`,
+          `Skipped: ${result.skipped}, Failed: ${result.failed}`
         );
 
         // Log success
@@ -130,14 +134,16 @@ export const generatePredictionsForNextGameweek = internalAction({
           syncType: "predictions",
           status: "success",
           details: JSON.stringify({
-            gameweek: nextGW,
+            currentGameweek: currentGW,
+            horizonWeeks: 14,
             generated: result.generated,
+            totalPredictions: result.totalPredictions,
             skipped: result.skipped,
             failed: result.failed,
           }),
         });
       } else {
-        console.error(`[CRON] ❌ Prediction generation failed for GW${nextGW}:`, result.error);
+        console.error(`[CRON] ❌ 14-week prediction generation failed:`, result.error);
 
         // Log failure
         await ctx.runMutation(api.syncLogs.logSync, {
@@ -147,7 +153,7 @@ export const generatePredictionsForNextGameweek = internalAction({
         });
       }
     } catch (error) {
-      console.error("[CRON] ❌ Fatal error in prediction generation:", error);
+      console.error("[CRON] ❌ Fatal error in 14-week prediction generation:", error);
 
       // Log fatal error
       await ctx.runMutation(api.syncLogs.logSync, {

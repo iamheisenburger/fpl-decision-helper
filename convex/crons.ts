@@ -52,9 +52,9 @@ crons.daily(
 );
 
 /**
- * SATURDAY 06:00 UTC - Weekly Prediction Regeneration
+ * SATURDAY 06:00 UTC - 14-Week Prediction Regeneration
  *
- * Generates xMins predictions for ALL 725 players for the NEXT gameweek.
+ * Generates xMins predictions for ALL 725 players for the NEXT 14 gameweeks.
  *
  * Why Saturday morning:
  * - Friday's gameweek has finished (all matches played)
@@ -62,8 +62,14 @@ crons.daily(
  * - Injury news from Friday matches is available
  * - 2+ days before next Friday deadline (users have time to plan)
  *
+ * Features:
+ * - Predicts GW+1 through GW+14 (full planning horizon)
+ * - Parses injury return dates from news text
+ * - Applies gradual recovery curves (60 mins first game back → 90 by game 4)
+ * - Confidence decay (95% for GW+1 → 60% for GW+14)
+ *
  * This is the MAIN weekly automation - processes all players.
- * Takes ~6 minutes to complete.
+ * Takes ~20-25 minutes to complete (725 players × 14 weeks = 10,150 predictions).
  */
 crons.weekly(
   "weekly-prediction-generation",
