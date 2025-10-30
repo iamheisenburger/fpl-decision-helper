@@ -59,6 +59,7 @@ export const syncPlayers = action({
               position,
               price: fplPlayer.now_cost / 10,
               team: team.name,
+              fplId: fplPlayer.id,
             });
           } else {
             // Create new player
@@ -67,6 +68,7 @@ export const syncPlayers = action({
               position,
               price: fplPlayer.now_cost / 10,
               team: team.name,
+              fplId: fplPlayer.id,
             });
           }
 
@@ -325,6 +327,166 @@ export const syncGameweekContext = action({
       return {
         success: true,
         synced: contexts.length,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+});
+
+/**
+ * Generate predictions for current squad
+ * Fetches historical data from FPL API and generates heuristic predictions
+ */
+export const generateSquadPredictions = action({
+  args: {
+    gameweek: v.number(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const season = getCurrentSeason();
+
+      // Get user's squad
+      const squad = await ctx.runQuery(api.userSquad.getSquad, {
+        gameweek: args.gameweek,
+      });
+
+      if (!squad || squad.length === 0) {
+        return {
+          success: false,
+          error: `No squad found for gameweek ${args.gameweek}. Please add your squad in the Data Entry page first.`,
+        };
+      }
+
+      const results = {
+        successCount: 0,
+        failedCount: 0,
+        errors: [] as Array<{ playerName: string; error: string }>,
+      };
+
+      // Get bootstrap data for team mapping
+      const bootstrapResponse = await fetch(
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      );
+      const bootstrap = await bootstrapResponse.json();
+      const teamMap = new Map(bootstrap.teams.map((t: any) => [t.id, t.name]));
+
+      // Process each player in squad
+      for (const squadEntry of squad) {
+        try {
+          // Get full player data
+          const player = await ctx.runQuery(api.players.getPlayer, {
+            id: squadEntry.playerId,
+          });
+
+          if (!player) {
+            results.failedCount++;
+            results.errors.push({
+              playerName: squadEntry.playerName || "Unknown",
+              error: "Player not found in database",
+            });
+            continue;
+          }
+
+          if (!player.fplId) {
+            results.failedCount++;
+            results.errors.push({
+              playerName: player.name,
+              error: "No FPL ID found. Please re-sync players from FPL API.",
+            });
+            continue;
+          }
+
+          // Fetch player history from FPL API
+          const historyResponse = await fetch(
+            `https://fantasy.premierleague.com/api/element-summary/${player.fplId}/`
+          );
+
+          if (!historyResponse.ok) {
+            results.failedCount++;
+            results.errors.push({
+              playerName: player.name,
+              error: `FPL API returned ${historyResponse.status}`,
+            });
+            continue;
+          }
+
+          const historyData = await historyResponse.json();
+
+          // Store historical appearances
+          const appearances = [];
+          for (const match of historyData.history) {
+            const opponent = (teamMap.get(match.opponent_team) || "Unknown") as string;
+            const earlySubOff = match.minutes > 0 && match.minutes < 60;
+            const didStart = match.starts === 1;
+            const injExit = didStart && earlySubOff;
+
+            appearances.push({
+              playerId: player._id,
+              gameweek: match.round,
+              season,
+              started: match.starts === 1,
+              minutes: match.minutes,
+              injExit,
+              redCard: match.red_cards > 0,
+              date: new Date(match.kickoff_time).getTime(),
+              competition: "Premier League",
+              opponent,
+              homeAway: (match.was_home ? "home" : "away") as "home" | "away",
+              fplGameweekId: match.fixture,
+            });
+          }
+
+          // Bulk insert appearances (if any)
+          if (appearances.length > 0) {
+            await ctx.runMutation(api.appearances.bulkInsertAppearances, {
+              appearances,
+            });
+          }
+
+          // Generate heuristic prediction for this player
+          const prediction = await ctx.runQuery(api.engines.xMinsHeuristic.predictWithHeuristic, {
+            playerId: player._id,
+            gameweek: args.gameweek,
+            excludeInjury: true,
+            excludeRedCard: true,
+            recencyWindow: 8,
+          });
+
+          // Store prediction
+          if (prediction) {
+            await ctx.runMutation(api.xmins.upsertXMins, {
+              playerId: player._id,
+              gameweek: args.gameweek,
+              startProb: prediction.startProb,
+              xMinsStart: prediction.xMinsStart,
+              p90: prediction.p90,
+              source: "heuristic",
+              flags: prediction.flags,
+            });
+          }
+
+          results.successCount++;
+
+          // Rate limiting
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } catch (error) {
+          results.failedCount++;
+          results.errors.push({
+            playerName: (squadEntry as any).playerName || "Unknown",
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      return {
+        success: true,
+        processed: squad.length,
+        ...results,
+        message: `Generated predictions for ${results.successCount}/${squad.length} players`,
       };
     } catch (error) {
       return {

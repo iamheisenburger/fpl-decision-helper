@@ -14,6 +14,7 @@ export default function AdminPage() {
 
   const syncPlayers = useAction(api.dataIngestion.syncPlayers);
   const syncGameweekContext = useAction(api.dataIngestion.syncGameweekContext);
+  const generateSquadPredictions = useAction(api.dataIngestion.generateSquadPredictions);
 
   const allPlayers = useQuery(api.players.getAllPlayers);
   const settings = useQuery(api.userSettings.getSettings);
@@ -47,10 +48,21 @@ export default function AdminPage() {
   };
 
   const handleTestPredictions = async () => {
-    setPredictionStatus("Generating test predictions...");
+    setPredictionStatus("Generating test predictions (this may take 1-2 minutes)...");
     try {
-      // TODO: Call heuristic prediction for squad
-      setPredictionStatus("✅ Test predictions generated (check Minutes Lab)");
+      // Use current gameweek from settings, or default to 10
+      const currentGW = settings?.currentGameweek || 10;
+      const result = await generateSquadPredictions({ gameweek: currentGW });
+
+      if (result.success) {
+        setPredictionStatus(
+          `✅ ${result.message}\n` +
+          `Successfully generated: ${result.successCount}, Failed: ${result.failedCount}\n` +
+          (result.errors.length > 0 ? `Errors: ${result.errors.map(e => `${e.playerName}: ${e.error}`).join(', ')}` : '')
+        );
+      } else {
+        setPredictionStatus(`❌ Error: ${result.error}`);
+      }
     } catch (error) {
       setPredictionStatus(`❌ Error: ${error}`);
     }

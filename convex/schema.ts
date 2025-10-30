@@ -13,7 +13,10 @@ export default defineSchema({
     ),
     price: v.number(), // in millions (e.g., 12.5)
     team: v.string(),
-  }).index("by_name", ["name"]),
+    fplId: v.optional(v.number()), // FPL API player ID for fetching historical data
+  })
+    .index("by_name", ["name"])
+    .index("by_fplId", ["fplId"]),
 
   // Gameweek inputs - stores EV, EV95, xMins, EO for each player per gameweek
   gameweekInputs: defineTable({

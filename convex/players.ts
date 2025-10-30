@@ -43,6 +43,7 @@ export const addPlayer = mutation({
     position: v.union(v.literal("GK"), v.literal("DEF"), v.literal("MID"), v.literal("FWD")),
     price: v.number(),
     team: v.string(),
+    fplId: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("players", {
@@ -50,6 +51,7 @@ export const addPlayer = mutation({
       position: args.position,
       price: args.price,
       team: args.team,
+      fplId: args.fplId,
     });
   },
 });
@@ -62,6 +64,7 @@ export const updatePlayer = mutation({
     position: v.optional(v.union(v.literal("GK"), v.literal("DEF"), v.literal("MID"), v.literal("FWD"))),
     price: v.optional(v.number()),
     team: v.optional(v.string()),
+    fplId: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
