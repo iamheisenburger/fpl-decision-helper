@@ -554,6 +554,9 @@ export const syncFPLTeam = action({
         errors: [] as Array<{ playerName: string; error: string }>,
       };
 
+      // Fetch all players ONCE before the loop (performance fix)
+      const allPlayers = await ctx.runQuery(api.players.getAllPlayers);
+
       // Process each pick
       for (const pick of data.picks) {
         try {
@@ -570,8 +573,7 @@ export const syncFPLTeam = action({
           }
 
           // Find player in our database by fplId
-          const players = await ctx.runQuery(api.players.getAllPlayers);
-          const player = players.find((p: any) => p.fplId === fplPlayerId);
+          const player = allPlayers.find((p: any) => p.fplId === fplPlayerId);
 
           if (!player) {
             results.failedCount++;
