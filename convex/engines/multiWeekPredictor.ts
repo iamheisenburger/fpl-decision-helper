@@ -16,6 +16,7 @@ import {
   getRecoveryMultiplier,
   getConfidenceDecay,
 } from "../utils/injuryIntelligence";
+import { calculateFdrAdjustment } from "../fixtures";
 
 interface MultiWeekPrediction {
   gameweek: number;
@@ -117,6 +118,45 @@ export const predictMultiWeek = action({
         prediction.xMinsStart *= chanceMultiplier;
         prediction.p90 *= chanceMultiplier;
         injuryAdjusted = true;
+      }
+
+      // Apply fixture difficulty adjustment
+      // Get player's team ID from FPL API data
+      if (player.fplId) {
+        try {
+          // Fetch team ID for this player
+          const bootstrapResponse = await fetch(
+            "https://fantasy.premierleague.com/api/bootstrap-static/"
+          );
+          const bootstrapData = await bootstrapResponse.json();
+          const fplPlayer = bootstrapData.elements.find((p: any) => p.id === player.fplId);
+
+          if (fplPlayer) {
+            const teamId = fplPlayer.team;
+
+            // Get fixture difficulty for this gameweek
+            const fixtureDifficulty = await ctx.runQuery(
+              api.fixtures.getTeamFixtureDifficulty,
+              {
+                teamId: teamId,
+                gameweek: targetGW,
+              }
+            );
+
+            if (fixtureDifficulty && !fixtureDifficulty.postponed) {
+              const fdrAdjustment = calculateFdrAdjustment(
+                fixtureDifficulty.difficulty,
+                player.position
+              );
+
+              prediction.xMinsStart *= fdrAdjustment;
+              prediction.p90 *= fdrAdjustment;
+            }
+          }
+        } catch (error) {
+          // Silently skip FDR adjustment if fetch fails
+          console.warn(`[FDR] Failed to fetch for player ${player.name}:`, error);
+        }
       }
 
       // Calculate uncertainty bounds (wider for longer horizons)

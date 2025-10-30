@@ -204,4 +204,24 @@ export default defineSchema({
   })
     .index("by_type_timestamp", ["syncType", "timestamp"])
     .index("by_timestamp", ["timestamp"]),
+
+  // Fixtures - stores Premier League fixtures with difficulty ratings
+  fixtures: defineTable({
+    fplId: v.number(), // FPL API fixture ID
+    gameweek: v.number(),
+    kickoffTime: v.number(), // Timestamp (epoch milliseconds)
+    homeTeam: v.string(), // Team name
+    awayTeam: v.string(), // Team name
+    homeTeamId: v.number(), // FPL team ID
+    awayTeamId: v.number(), // FPL team ID
+    homeTeamDifficulty: v.number(), // 1-5 (1=easiest, 5=hardest)
+    awayTeamDifficulty: v.number(), // 1-5 (1=easiest, 5=hardest)
+    finished: v.boolean(), // Has the match finished?
+    postponed: v.boolean(), // Is it postponed?
+    homeScore: v.optional(v.number()), // Final score (if finished)
+    awayScore: v.optional(v.number()), // Final score (if finished)
+  })
+    .index("by_gameweek", ["gameweek"])
+    .index("by_fplId", ["fplId"])
+    .index("by_team_gameweek", ["homeTeamId", "gameweek"]),
 });
