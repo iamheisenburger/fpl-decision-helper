@@ -25,7 +25,7 @@ export default function MinutesLabPage() {
     api.xmins.getMultiplePlayersXMins,
     squad
       ? {
-          playerIds: squad.map((p: any) => p.player._id),
+          playerIds: squad.map((p: any) => p.playerId),
           gameweek: selectedGameweek,
         }
       : "skip"
@@ -141,18 +141,17 @@ export default function MinutesLabPage() {
         <h2 className="text-xl font-semibold">Your Squad (GW{selectedGameweek})</h2>
 
         {squad.map((playerSquad: any) => {
-          const player = playerSquad.player;
-          const prediction = xMinsPredictions?.find((p: any) => p.playerId === player._id)?.xmins;
+          const prediction = xMinsPredictions?.find((p: any) => p.playerId === playerSquad.playerId)?.xmins;
 
           return (
-            <Card key={player._id}>
+            <Card key={playerSquad.playerId}>
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                   {/* Player Info */}
                   <div className="md:col-span-3">
-                    <div className="font-semibold">{player.name}</div>
+                    <div className="font-semibold">{playerSquad.playerName}</div>
                     <div className="text-sm text-muted-foreground">
-                      {player.position} • {player.team}
+                      {playerSquad.position} • {playerSquad.team}
                     </div>
                   </div>
 
@@ -211,7 +210,7 @@ export default function MinutesLabPage() {
                             : "85"
                         );
                         if (newXMins !== null) {
-                          handleOverride(player._id, "xMins", parseFloat(newXMins));
+                          handleOverride(playerSquad.playerId, "xMins", parseFloat(newXMins));
                         }
                       }}
                     >
