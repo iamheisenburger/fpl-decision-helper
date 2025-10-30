@@ -16,7 +16,11 @@
       "Bash(npx convex deploy:*)",
       "Bash(npx convex dev:*)",
       "Bash(npm run dev:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npx convex run:*)",
+      "Bash(cat:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(node -e:*)"
     ],
     "deny": [],
     "ask": []

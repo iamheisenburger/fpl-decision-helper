@@ -6,14 +6,20 @@ import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function AdminPage() {
   const [syncStatus, setSyncStatus] = useState("");
   const [contextStatus, setContextStatus] = useState("");
+  const [teamSyncStatus, setTeamSyncStatus] = useState("");
   const [predictionStatus, setPredictionStatus] = useState("");
+  const [fplTeamId, setFplTeamId] = useState("");
+  const [gameweekForSync, setGameweekForSync] = useState(10);
 
   const syncPlayers = useAction(api.dataIngestion.syncPlayers);
   const syncGameweekContext = useAction(api.dataIngestion.syncGameweekContext);
+  const syncFPLTeam = useAction(api.dataIngestion.syncFPLTeam);
   const generateSquadPredictions = useAction(api.dataIngestion.generateSquadPredictions);
 
   const allPlayers = useQuery(api.players.getAllPlayers);
@@ -44,6 +50,33 @@ export default function AdminPage() {
       }
     } catch (error) {
       setContextStatus(`❌ Error: ${error}`);
+    }
+  };
+
+  const handleSyncFPLTeam = async () => {
+    if (!fplTeamId || isNaN(Number(fplTeamId))) {
+      setTeamSyncStatus("❌ Please enter a valid FPL Team ID");
+      return;
+    }
+
+    setTeamSyncStatus("Syncing your FPL team...");
+    try {
+      const result = await syncFPLTeam({
+        teamId: Number(fplTeamId),
+        gameweek: gameweekForSync,
+      });
+
+      if (result.success) {
+        setTeamSyncStatus(
+          `✅ ${result.message}\n` +
+          `Synced: ${result.synced}, Failed: ${result.failed}` +
+          (result.errors.length > 0 ? `\nErrors: ${result.errors.map((e: any) => `${e.playerName}: ${e.error}`).join(', ')}` : '')
+        );
+      } else {
+        setTeamSyncStatus(`❌ Error: ${result.error}`);
+      }
+    } catch (error) {
+      setTeamSyncStatus(`❌ Error: ${error}`);
     }
   };
 
@@ -120,6 +153,52 @@ export default function AdminPage() {
             {contextStatus && (
               <div className="text-sm">
                 {contextStatus}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Step 2.5: Import FPL Team */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Import Your FPL Team</CardTitle>
+            <CardDescription>
+              Enter your FPL Team ID to automatically sync your squad (replaces manual data entry)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="teamId">FPL Team ID</Label>
+                <Input
+                  id="teamId"
+                  type="number"
+                  placeholder="e.g., 123456"
+                  value={fplTeamId}
+                  onChange={(e) => setFplTeamId(e.target.value)}
+                />
+                <div className="text-xs text-muted-foreground">
+                  Find this in your FPL URL: fantasy.premierleague.com/entry/YOUR_ID/event/X
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="gwForSync">Gameweek</Label>
+                <Input
+                  id="gwForSync"
+                  type="number"
+                  min={1}
+                  max={38}
+                  value={gameweekForSync}
+                  onChange={(e) => setGameweekForSync(parseInt(e.target.value))}
+                />
+              </div>
+            </div>
+            <Button onClick={handleSyncFPLTeam} variant="default">
+              Import Team from FPL
+            </Button>
+            {teamSyncStatus && (
+              <div className="text-sm whitespace-pre-line">
+                {teamSyncStatus}
               </div>
             )}
           </CardContent>

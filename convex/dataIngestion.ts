@@ -495,6 +495,129 @@ export const generateSquadPredictions = action({
   },
 });
 
+/**
+ * Sync user's FPL team to database
+ * Fetches squad from FPL API using team ID and stores in userSquad table
+ */
+export const syncFPLTeam = action({
+  args: {
+    teamId: v.number(),
+    gameweek: v.number(),
+  },
+  handler: async (ctx, args): Promise<any> => {
+    try {
+      // Fetch team picks from FPL API
+      const response = await fetch(
+        `https://fantasy.premierleague.com/api/entry/${args.teamId}/event/${args.gameweek}/picks/`
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return {
+            success: false,
+            error: `Team ID ${args.teamId} not found. Please check your FPL team ID.`,
+          };
+        }
+        return {
+          success: false,
+          error: `FPL API returned ${response.status}`,
+        };
+      }
+
+      const data = await response.json();
+
+      // Get bootstrap data to map FPL element IDs to player names
+      const bootstrapResponse = await fetch(
+        "https://fantasy.premierleague.com/api/bootstrap-static/"
+      );
+      const bootstrap = await bootstrapResponse.json();
+
+      // Create map of FPL element ID to player name
+      const fplPlayerMap = new Map(
+        bootstrap.elements.map((p: any) => [p.id, p.web_name])
+      );
+
+      // Clear existing squad for this gameweek
+      const existingSquad = await ctx.runQuery(api.userSquad.getSquad, {
+        gameweek: args.gameweek,
+      });
+
+      for (const entry of existingSquad) {
+        await ctx.runMutation(api.userSquad.removeFromSquad, {
+          id: entry._id,
+        });
+      }
+
+      const results = {
+        successCount: 0,
+        failedCount: 0,
+        errors: [] as Array<{ playerName: string; error: string }>,
+      };
+
+      // Process each pick
+      for (const pick of data.picks) {
+        try {
+          const fplPlayerId = pick.element;
+          const playerName = fplPlayerMap.get(fplPlayerId);
+
+          if (!playerName) {
+            results.failedCount++;
+            results.errors.push({
+              playerName: `FPL ID ${fplPlayerId}`,
+              error: "Player not found in bootstrap data",
+            });
+            continue;
+          }
+
+          // Find player in our database by fplId
+          const players = await ctx.runQuery(api.players.getAllPlayers);
+          const player = players.find((p: any) => p.fplId === fplPlayerId);
+
+          if (!player) {
+            results.failedCount++;
+            results.errors.push({
+              playerName: String(playerName),
+              error: "Player not found in database. Please sync players from FPL API first.",
+            });
+            continue;
+          }
+
+          // Add to squad
+          await ctx.runMutation(api.userSquad.addToSquad, {
+            playerId: player._id,
+            gameweek: args.gameweek,
+            isCaptain: pick.is_captain,
+            isVice: pick.is_vice_captain,
+            benchOrder: pick.position > 11 ? pick.position - 11 : undefined,
+          });
+
+          results.successCount++;
+        } catch (error) {
+          results.failedCount++;
+          results.errors.push({
+            playerName: `Pick ${pick.element}`,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      return {
+        success: true,
+        synced: results.successCount,
+        total: data.picks.length,
+        failed: results.failedCount,
+        errors: results.errors,
+        message: `Synced ${results.successCount}/${data.picks.length} players from your FPL team`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+});
+
 // Helper function
 function getCurrentSeason(): string {
   const now = new Date();
