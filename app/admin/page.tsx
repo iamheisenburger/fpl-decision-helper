@@ -15,7 +15,7 @@ export default function AdminPage() {
   const [teamSyncStatus, setTeamSyncStatus] = useState("");
   const [predictionStatus, setPredictionStatus] = useState("");
   const [fplTeamId, setFplTeamId] = useState("");
-  const [gameweekForSync, setGameweekForSync] = useState(10);
+  const [gameweekForSync, setGameweekForSync] = useState(9); // Current GW
 
   const syncPlayers = useAction(api.dataIngestion.syncPlayers);
   const syncGameweekContext = useAction(api.dataIngestion.syncGameweekContext);
@@ -83,8 +83,8 @@ export default function AdminPage() {
   const handleTestPredictions = async () => {
     setPredictionStatus("Generating test predictions (this may take 1-2 minutes)...");
     try {
-      // Default to gameweek 10 (you can change this as needed)
-      const currentGW = 10;
+      // Use the current gameweek
+      const currentGW = 9;
       const result = await generateSquadPredictions({ gameweek: currentGW });
 
       if (result.success) {

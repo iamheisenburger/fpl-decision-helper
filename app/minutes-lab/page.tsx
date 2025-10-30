@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -8,60 +8,61 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import type { Id } from "@/convex/_generated/dataModel";
 
 export default function MinutesLabPage() {
-  const [selectedGameweek, setSelectedGameweek] = useState(10); // Default to GW10
-  const [excludeInjury, setExcludeInjury] = useState(true);
-  const [excludeRedCard, setExcludeRedCard] = useState(true);
-  const [recencyWindow, setRecencyWindow] = useState(8);
+  const [selectedGameweek, setSelectedGameweek] = useState(9); // Current GW
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedPosition, setSelectedPosition] = useState<"ALL" | "GK" | "DEF" | "MID" | "FWD">("ALL");
+  const [selectedTeam, setSelectedTeam] = useState<string>("ALL");
 
-  const settings = useQuery(api.userSettings.getSettings);
-  const squad = useQuery(api.userSquad.getSquad, { gameweek: selectedGameweek });
+  // Get ALL players
+  const allPlayers = useQuery(api.players.getAllPlayers);
 
-  // Get xMins predictions for squad players
-  const xMinsPredictions = useQuery(
-    api.xmins.getMultiplePlayersXMins,
-    squad
-      ? {
-          playerIds: squad.map((p: any) => p.playerId),
-          gameweek: selectedGameweek,
-        }
-      : "skip"
-  );
+  // Get xMins predictions for all players (we'll optimize this later)
+  // For now, this is a placeholder - we'd need to batch generate for all players
+  const [showOnlyWithPredictions, setShowOnlyWithPredictions] = useState(false);
 
-  const upsertOverride = useMutation(api.overrides.upsertOverride);
-  const applyOverride = useMutation(api.overrides.applyOverride);
+  // Filtered and sorted players
+  const filteredPlayers = useMemo(() => {
+    if (!allPlayers) return [];
 
-  const [overrideValues, setOverrideValues] = useState<Record<string, { xMins?: number; p90?: number }>>({});
+    let filtered = allPlayers;
 
-  const handleOverride = async (playerId: Id<"players">, field: "xMins" | "p90", value: number) => {
-    try {
-      await applyOverride({
-        playerId,
-        gameweek: selectedGameweek,
-        field,
-        value,
-        reason: "Manual override from Minutes Lab",
-      });
-      alert("Override applied successfully!");
-    } catch (error) {
-      alert(`Failed to apply override: ${error}`);
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter((p: any) =>
+        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
-  };
 
-  if (!squad) {
+    // Filter by position
+    if (selectedPosition !== "ALL") {
+      filtered = filtered.filter((p: any) => p.position === selectedPosition);
+    }
+
+    // Filter by team
+    if (selectedTeam !== "ALL") {
+      filtered = filtered.filter((p: any) => p.team === selectedTeam);
+    }
+
+    // Sort by name
+    return filtered.sort((a: any, b: any) => a.name.localeCompare(b.name));
+  }, [allPlayers, searchTerm, selectedPosition, selectedTeam]);
+
+  // Get unique teams for filter
+  const teams = useMemo(() => {
+    if (!allPlayers) return [];
+    const uniqueTeams = [...new Set(allPlayers.map((p: any) => p.team))];
+    return uniqueTeams.sort();
+  }, [allPlayers]);
+
+  if (!allPlayers) {
     return (
       <div className="container mx-auto p-8">
         <div className="text-center">
           <h1 className="text-3xl font-bold mb-4">Minutes Lab</h1>
-          <p className="text-muted-foreground">
-            No squad data found for GW{selectedGameweek}. Please add your squad first.
-          </p>
-          <Button className="mt-4" onClick={() => (window.location.href = "/data-entry")}>
-            Go to Data Entry
-          </Button>
+          <p className="text-muted-foreground">Loading players...</p>
         </div>
       </div>
     );
@@ -73,18 +74,63 @@ export default function MinutesLabPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Minutes Lab</h1>
         <p className="text-muted-foreground">
-          View and manage expected minutes predictions for your squad
+          View and manage expected minutes predictions for all {allPlayers.length} players
         </p>
       </div>
 
-      {/* Controls */}
+      {/* Filters */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Prediction Settings</CardTitle>
-          <CardDescription>Configure how predictions are calculated</CardDescription>
+          <CardTitle>Filters</CardTitle>
+          <CardDescription>Search and filter players</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="space-y-2">
+              <Label>Search Player</Label>
+              <Input
+                type="text"
+                placeholder="e.g., Salah, Haaland"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            {/* Position Filter */}
+            <div className="space-y-2">
+              <Label>Position</Label>
+              <select
+                className="w-full p-2 border rounded-md"
+                value={selectedPosition}
+                onChange={(e) => setSelectedPosition(e.target.value as any)}
+              >
+                <option value="ALL">All Positions</option>
+                <option value="GK">Goalkeepers</option>
+                <option value="DEF">Defenders</option>
+                <option value="MID">Midfielders</option>
+                <option value="FWD">Forwards</option>
+              </select>
+            </div>
+
+            {/* Team Filter */}
+            <div className="space-y-2">
+              <Label>Team</Label>
+              <select
+                className="w-full p-2 border rounded-md"
+                value={selectedTeam}
+                onChange={(e) => setSelectedTeam(e.target.value)}
+              >
+                <option value="ALL">All Teams</option>
+                {teams.map((team: any) => (
+                  <option key={team} value={team}>
+                    {team}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Gameweek Selector */}
             <div className="space-y-2">
               <Label>Gameweek</Label>
               <Input
@@ -95,148 +141,103 @@ export default function MinutesLabPage() {
                 max={38}
               />
             </div>
-
-            <div className="space-y-2">
-              <Label>Recency Window (GWs)</Label>
-              <Input
-                type="number"
-                value={recencyWindow}
-                onChange={(e) => setRecencyWindow(parseInt(e.target.value))}
-                min={3}
-                max={15}
-              />
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="exclude-injury"
-                  checked={excludeInjury}
-                  onCheckedChange={setExcludeInjury}
-                />
-                <Label htmlFor="exclude-injury">Exclude Injury Exits</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="exclude-red"
-                  checked={excludeRedCard}
-                  onCheckedChange={setExcludeRedCard}
-                />
-                <Label htmlFor="exclude-red">Exclude Red Cards</Label>
-              </div>
-            </div>
           </div>
 
-          <div className="mt-4">
-            <Button onClick={() => alert("Recompute triggered!")} className="w-full md:w-auto">
-              Recompute All Predictions
-            </Button>
+          <div className="mt-4 text-sm text-muted-foreground">
+            Showing {filteredPlayers.length} of {allPlayers.length} players
           </div>
         </CardContent>
       </Card>
 
-      {/* Squad Predictions Grid */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Your Squad (GW{selectedGameweek})</h2>
+      {/* Important Notice */}
+      <Card className="mb-6 bg-yellow-50 border-yellow-200">
+        <CardContent className="pt-6">
+          <div className="space-y-2 text-sm">
+            <div className="font-semibold text-yellow-900">
+              ⚠️ Important: Predictions Not Yet Generated for All Players
+            </div>
+            <div className="text-yellow-800">
+              Currently, xMins predictions are only generated for players in your squad. To see
+              predictions for all players, we need to:
+            </div>
+            <ul className="list-disc list-inside text-yellow-800 ml-4">
+              <li>Generate 14-week horizon predictions (GW 9-22)</li>
+              <li>Batch process all 700+ players (takes significant compute time)</li>
+              <li>Set up automatic daily updates</li>
+              <li>Deploy ML models for accurate long-term predictions</li>
+            </ul>
+            <div className="text-yellow-800 mt-2">
+              <strong>Current Status:</strong> Heuristic predictions for next gameweek only, squad
+              players only
+            </div>
+            <div className="text-yellow-800">
+              <strong>Target:</strong> ML-powered 14-week predictions for all 700+ players, updated
+              daily
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-        {squad.map((playerSquad: any) => {
-          const prediction = xMinsPredictions?.find((p: any) => p.playerId === playerSquad.playerId)?.xmins;
-
-          return (
-            <Card key={playerSquad.playerId}>
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                  {/* Player Info */}
-                  <div className="md:col-span-3">
-                    <div className="font-semibold">{playerSquad.playerName}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {playerSquad.position} • {playerSquad.team}
-                    </div>
-                  </div>
-
-                  {/* Predictions */}
-                  {prediction ? (
-                    <>
-                      <div className="md:col-span-2">
-                        <Label className="text-xs text-muted-foreground">xMins</Label>
-                        <div className="text-lg font-semibold">
-                          {(prediction.startProb * prediction.xMinsStart).toFixed(1)}
-                        </div>
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <Label className="text-xs text-muted-foreground">P90</Label>
-                        <div className="text-lg font-semibold">
-                          {(prediction.p90 * 100).toFixed(0)}%
-                        </div>
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <Label className="text-xs text-muted-foreground">Start Prob</Label>
-                        <div className="text-lg font-semibold">
-                          {(prediction.startProb * 100).toFixed(0)}%
-                        </div>
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <Label className="text-xs text-muted-foreground">Source</Label>
-                        <Badge variant={prediction.source === "model" ? "default" : "secondary"}>
-                          {prediction.source}
-                        </Badge>
-                        {prediction.flags?.roleLock && (
-                          <Badge variant="outline" className="ml-2">
-                            Role Lock
-                          </Badge>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="md:col-span-8 text-center text-muted-foreground">
-                      No prediction available
-                    </div>
-                  )}
-
-                  {/* Override Button */}
-                  <div className="md:col-span-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const newXMins = prompt(
-                          "Enter new xMins value:",
-                          prediction
-                            ? String((prediction.startProb * prediction.xMinsStart).toFixed(1))
-                            : "85"
-                        );
-                        if (newXMins !== null) {
-                          handleOverride(playerSquad.playerId, "xMins", parseFloat(newXMins));
-                        }
-                      }}
-                    >
-                      Override
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Impact Preview */}
-      <Card className="mt-6">
+      {/* Player List */}
+      <Card>
         <CardHeader>
-          <CardTitle>Impact Preview</CardTitle>
+          <CardTitle>
+            Player Database ({filteredPlayers.length} players)
+          </CardTitle>
           <CardDescription>
-            How these xMins values affect your captain and XI decisions
+            Click on a player to view detailed 14-week predictions (coming soon)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-sm text-muted-foreground">
-            💡 This will show diff before/after when you modify xMins values.
-            <br />
-            Coming soon: Real-time captain/XI recalculation on override.
+          <div className="space-y-2">
+            {/* Table Header */}
+            <div className="grid grid-cols-12 gap-4 p-3 bg-gray-100 rounded-md font-semibold text-sm">
+              <div className="col-span-3">Player</div>
+              <div className="col-span-2">Team</div>
+              <div className="col-span-1">Pos</div>
+              <div className="col-span-1">£</div>
+              <div className="col-span-1 text-center">xMins</div>
+              <div className="col-span-1 text-center">P90</div>
+              <div className="col-span-2 text-center">Status</div>
+              <div className="col-span-1"></div>
+            </div>
+
+            {/* Player Rows */}
+            {filteredPlayers.slice(0, 50).map((player: any) => (
+              <div
+                key={player._id}
+                className="grid grid-cols-12 gap-4 p-3 border rounded-md hover:bg-gray-50"
+              >
+                <div className="col-span-3 font-semibold">{player.name}</div>
+                <div className="col-span-2 text-sm text-muted-foreground">{player.team}</div>
+                <div className="col-span-1">
+                  <Badge variant="outline">{player.position}</Badge>
+                </div>
+                <div className="col-span-1 text-sm">£{player.price.toFixed(1)}m</div>
+                <div className="col-span-1 text-center text-muted-foreground">-</div>
+                <div className="col-span-1 text-center text-muted-foreground">-</div>
+                <div className="col-span-2 text-center">
+                  <Badge variant="secondary">Not Generated</Badge>
+                </div>
+                <div className="col-span-1">
+                  <Button variant="ghost" size="sm" disabled>
+                    View
+                  </Button>
+                </div>
+              </div>
+            ))}
+
+            {filteredPlayers.length > 50 && (
+              <div className="text-center p-4 text-sm text-muted-foreground">
+                Showing first 50 players. Use filters to narrow results.
+              </div>
+            )}
+
+            {filteredPlayers.length === 0 && (
+              <div className="text-center p-8 text-muted-foreground">
+                No players found matching your filters.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -246,27 +247,27 @@ export default function MinutesLabPage() {
         <CardContent className="pt-6">
           <div className="space-y-2 text-sm">
             <div>
-              <strong>How it works:</strong>
+              <strong>Roadmap to Full System:</strong>
             </div>
             <ul className="list-disc list-inside space-y-1 text-muted-foreground">
               <li>
-                <strong>Heuristic Mode:</strong> Uses recency-weighted averages of recent healthy
-                starts
+                <strong>Week 1-2:</strong> Set up automatic daily data sync (prices, injuries,
+                fixtures)
               </li>
               <li>
-                <strong>Role Lock:</strong> Detected when player has 3+ consecutive 85+ minute
-                starts
+                <strong>Week 2-3:</strong> Extend predictions to 14-week horizon (GW 9-22)
               </li>
               <li>
-                <strong>P90:</strong> Probability of playing 90 minutes (granular buckets: 95→1.0,
-                90→0.9, etc.)
+                <strong>Week 3-4:</strong> Batch generate predictions for all 700+ players
               </li>
               <li>
-                <strong>Override:</strong> Manually set xMins/P90 values that flow to captain/XI
-                pages
+                <strong>Week 4-6:</strong> Add injury tracking and manager change detection
               </li>
               <li>
-                <strong>Coming Soon:</strong> ML-based predictions via FastAPI service
+                <strong>Week 6-10:</strong> Train and deploy ML models (85-90% accuracy target)
+              </li>
+              <li>
+                <strong>Ongoing:</strong> Add fixture difficulty, depth charts, confidence intervals
               </li>
             </ul>
           </div>
