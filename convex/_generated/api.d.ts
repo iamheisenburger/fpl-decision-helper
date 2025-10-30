@@ -21,6 +21,7 @@ import type * as overrides from "../overrides.js";
 import type * as players from "../players.js";
 import type * as userSettings from "../userSettings.js";
 import type * as userSquad from "../userSquad.js";
+import type * as utils_gameweekDetection from "../utils/gameweekDetection.js";
 import type * as xmins from "../xmins.js";
 
 import type {
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   players: typeof players;
   userSettings: typeof userSettings;
   userSquad: typeof userSquad;
+  "utils/gameweekDetection": typeof utils_gameweekDetection;
   xmins: typeof xmins;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

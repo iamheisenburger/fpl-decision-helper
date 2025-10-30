@@ -21,7 +21,8 @@
       "Bash(cat:*)",
       "Bash(powershell -Command:*)",
       "Bash(node -e:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(vercel --version:*)"
     ],
     "deny": [],
     "ask": []

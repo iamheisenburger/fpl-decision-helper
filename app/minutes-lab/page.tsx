@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +11,26 @@ import { Label } from "@/components/ui/label";
 import type { Id } from "@/convex/_generated/dataModel";
 
 export default function MinutesLabPage() {
-  const [selectedGameweek, setSelectedGameweek] = useState(9); // Current GW
+  const [selectedGameweek, setSelectedGameweek] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPosition, setSelectedPosition] = useState<"ALL" | "GK" | "DEF" | "MID" | "FWD">("ALL");
   const [selectedTeam, setSelectedTeam] = useState<string>("ALL");
+
+  const getCurrentGW = useAction(api.utils.gameweekDetection.getCurrentGameweek);
+
+  // Fetch current gameweek on load
+  useEffect(() => {
+    const fetchGameweek = async () => {
+      try {
+        const gw = await getCurrentGW({});
+        setSelectedGameweek(gw);
+      } catch (error) {
+        console.error("Failed to fetch current gameweek:", error);
+        setSelectedGameweek(9); // Fallback to 9
+      }
+    };
+    fetchGameweek();
+  }, [getCurrentGW]);
 
   // Get ALL players
   const allPlayers = useQuery(api.players.getAllPlayers);
@@ -135,10 +151,11 @@ export default function MinutesLabPage() {
               <Label>Gameweek</Label>
               <Input
                 type="number"
-                value={selectedGameweek}
+                value={selectedGameweek ?? ""}
                 onChange={(e) => setSelectedGameweek(parseInt(e.target.value))}
                 min={1}
                 max={38}
+                placeholder="Loading..."
               />
             </div>
           </div>

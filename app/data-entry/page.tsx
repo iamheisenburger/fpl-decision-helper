@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,18 +14,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 
 export default function DataEntryPage() {
-  const [currentGameweek, setCurrentGameweek] = useState(10);
+  const [currentGameweek, setCurrentGameweek] = useState<number | null>(null);
+  const getCurrentGW = useAction(api.utils.gameweekDetection.getCurrentGameweek);
+
+  // Fetch current gameweek on load
+  useEffect(() => {
+    const fetchGameweek = async () => {
+      try {
+        const gw = await getCurrentGW({});
+        setCurrentGameweek(gw);
+      } catch (error) {
+        console.error("Failed to fetch current gameweek:", error);
+        setCurrentGameweek(9); // Fallback to 9
+      }
+    };
+    fetchGameweek();
+  }, [getCurrentGW]);
 
   // Queries
   const allPlayers = useQuery(api.players.getAllPlayers);
-  const squad = useQuery(api.userSquad.getSquad, { gameweek: currentGameweek });
-  const gameweekInputs = useQuery(api.gameweekInputs.getGameweekInputs, {
-    gameweek: currentGameweek,
-  });
+  const squad = useQuery(
+    api.userSquad.getSquad,
+    currentGameweek !== null ? { gameweek: currentGameweek } : "skip"
+  );
+  const gameweekInputs = useQuery(
+    api.gameweekInputs.getGameweekInputs,
+    currentGameweek !== null ? { gameweek: currentGameweek } : "skip"
+  );
 
   // Mutations
   const addPlayer = useMutation(api.players.addPlayer);
@@ -84,6 +103,11 @@ export default function DataEntryPage() {
       return;
     }
 
+    if (currentGameweek === null) {
+      alert("Loading gameweek information, please wait...");
+      return;
+    }
+
     try {
       await addToSquad({
         playerId,
@@ -113,6 +137,11 @@ export default function DataEntryPage() {
       return;
     }
 
+    if (currentGameweek === null) {
+      alert("Loading gameweek information, please wait...");
+      return;
+    }
+
     try {
       await upsertGameweekInput({
         playerId: selectedPlayerId,
@@ -130,6 +159,16 @@ export default function DataEntryPage() {
 
   // Get squad player IDs for filtering
   const squadPlayerIds = squad?.map((s: any) => s.playerId) || [];
+
+  if (currentGameweek === null) {
+    return (
+      <div className="space-y-8">
+        <div className="text-center text-muted-foreground py-12">
+          Loading gameweek information...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

@@ -1,29 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export default function AdminPage() {
   const [syncStatus, setSyncStatus] = useState("");
   const [contextStatus, setContextStatus] = useState("");
-  const [teamSyncStatus, setTeamSyncStatus] = useState("");
-  const [predictionStatus, setPredictionStatus] = useState("");
-  const [fplTeamId, setFplTeamId] = useState("");
-  const [gameweekForSync, setGameweekForSync] = useState(9); // Current GW
+  const [currentGameweek, setCurrentGameweek] = useState<number | null>(null);
+  const [nextGameweek, setNextGameweek] = useState<number | null>(null);
+  const [deadline, setDeadline] = useState<string | null>(null);
 
   const syncPlayers = useAction(api.dataIngestion.syncPlayers);
   const syncGameweekContext = useAction(api.dataIngestion.syncGameweekContext);
-  const syncFPLTeam = useAction(api.dataIngestion.syncFPLTeam);
-  const generateSquadPredictions = useAction(api.dataIngestion.generateSquadPredictions);
+  const getCurrentGW = useAction(api.utils.gameweekDetection.getCurrentGameweek);
+  const getNextGW = useAction(api.utils.gameweekDetection.getNextGameweek);
+  const getDeadline = useAction(api.utils.gameweekDetection.getGameweekDeadline);
 
   const allPlayers = useQuery(api.players.getAllPlayers);
   const settings = useQuery(api.userSettings.getSettings);
+
+  // Fetch current gameweek on load
+  useEffect(() => {
+    const fetchGameweekInfo = async () => {
+      try {
+        const [current, next, deadlineInfo] = await Promise.all([
+          getCurrentGW({}),
+          getNextGW({}),
+          getDeadline({}),
+        ]);
+        setCurrentGameweek(current);
+        setNextGameweek(next);
+        if (deadlineInfo) {
+          setDeadline(deadlineInfo.deadline);
+        }
+      } catch (error) {
+        console.error("Failed to fetch gameweek info:", error);
+      }
+    };
+    fetchGameweekInfo();
+  }, [getCurrentGW, getNextGW, getDeadline]);
 
   const handleSyncPlayers = async () => {
     setSyncStatus("Syncing players from FPL API...");
@@ -53,70 +72,54 @@ export default function AdminPage() {
     }
   };
 
-  const handleSyncFPLTeam = async () => {
-    if (!fplTeamId || isNaN(Number(fplTeamId))) {
-      setTeamSyncStatus("❌ Please enter a valid FPL Team ID");
-      return;
-    }
-
-    setTeamSyncStatus("Syncing your FPL team...");
-    try {
-      const result = await syncFPLTeam({
-        teamId: Number(fplTeamId),
-        gameweek: gameweekForSync,
-      });
-
-      if (result.success) {
-        setTeamSyncStatus(
-          `✅ ${result.message}\n` +
-          `Synced: ${result.synced}, Failed: ${result.failed}` +
-          (result.errors.length > 0 ? `\nErrors: ${result.errors.map((e: any) => `${e.playerName}: ${e.error}`).join(', ')}` : '')
-        );
-      } else {
-        setTeamSyncStatus(`❌ Error: ${result.error}`);
-      }
-    } catch (error) {
-      setTeamSyncStatus(`❌ Error: ${error}`);
-    }
-  };
-
-  const handleTestPredictions = async () => {
-    setPredictionStatus("Generating test predictions (this may take 1-2 minutes)...");
-    try {
-      // Use the current gameweek
-      const currentGW = 9;
-      const result = await generateSquadPredictions({ gameweek: currentGW });
-
-      if (result.success) {
-        setPredictionStatus(
-          `✅ ${result.message}\n` +
-          `Successfully generated: ${result.successCount}, Failed: ${result.failedCount}\n` +
-          (result.errors.length > 0 ? `Errors: ${result.errors.map((e: any) => `${e.playerName}: ${e.error}`).join(', ')}` : '')
-        );
-      } else {
-        setPredictionStatus(`❌ Error: ${result.error}`);
-      }
-    } catch (error) {
-      setPredictionStatus(`❌ Error: ${error}`);
-    }
-  };
-
   return (
     <div className="container mx-auto p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Admin & Testing</h1>
+        <h1 className="text-3xl font-bold mb-2">Admin & System Status</h1>
         <p className="text-muted-foreground">
-          Initialize the xMins prediction system and test functionality
+          Monitor the automated xMins prediction system and manually trigger data syncs if needed
         </p>
       </div>
 
       <div className="grid gap-6">
-        {/* Step 1: Sync Players */}
+        {/* Gameweek Info */}
         <Card>
           <CardHeader>
-            <CardTitle>Step 1: Sync FPL Players</CardTitle>
+            <CardTitle>Current Gameweek Information</CardTitle>
             <CardDescription>
-              Fetch all 600+ Premier League players from FPL Official API and store in database
+              Automatically detected from FPL Official API
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <div className="text-muted-foreground mb-1">Current Gameweek</div>
+                <div className="text-2xl font-bold">
+                  {currentGameweek !== null ? `GW ${currentGameweek}` : "Loading..."}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground mb-1">Next Gameweek</div>
+                <div className="text-2xl font-bold">
+                  {nextGameweek !== null ? `GW ${nextGameweek}` : "Loading..."}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground mb-1">Next Deadline</div>
+                <div className="text-sm font-mono">
+                  {deadline ? new Date(deadline).toLocaleString() : "Loading..."}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Manual Sync Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Manual Data Sync</CardTitle>
+            <CardDescription>
+              These operations run automatically via cron jobs, but you can trigger them manually if needed
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -135,96 +138,17 @@ export default function AdminPage() {
                 {syncStatus}
               </div>
             )}
-          </CardContent>
-        </Card>
 
-        {/* Step 2: Sync Context */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Step 2: Sync Gameweek Context</CardTitle>
-            <CardDescription>
-              Fetch fixture congestion and international break data for all gameweeks
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button onClick={handleSyncContext}>
-              Sync Gameweek Context
-            </Button>
+            <div className="flex items-center gap-4 mt-4">
+              <Button onClick={handleSyncContext}>
+                Sync Gameweek Context
+              </Button>
+            </div>
             {contextStatus && (
               <div className="text-sm">
                 {contextStatus}
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Step 2.5: Import FPL Team */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Import Your FPL Team</CardTitle>
-            <CardDescription>
-              Enter your FPL Team ID to automatically sync your squad (replaces manual data entry)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="teamId">FPL Team ID</Label>
-                <Input
-                  id="teamId"
-                  type="number"
-                  placeholder="e.g., 123456"
-                  value={fplTeamId}
-                  onChange={(e) => setFplTeamId(e.target.value)}
-                />
-                <div className="text-xs text-muted-foreground">
-                  Find this in your FPL URL: fantasy.premierleague.com/entry/YOUR_ID/event/X
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gwForSync">Gameweek</Label>
-                <Input
-                  id="gwForSync"
-                  type="number"
-                  min={1}
-                  max={38}
-                  value={gameweekForSync}
-                  onChange={(e) => setGameweekForSync(parseInt(e.target.value))}
-                />
-              </div>
-            </div>
-            <Button onClick={handleSyncFPLTeam} variant="default">
-              Import Team from FPL
-            </Button>
-            {teamSyncStatus && (
-              <div className="text-sm whitespace-pre-line">
-                {teamSyncStatus}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Step 3: Test Predictions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Step 3: Generate Test Predictions</CardTitle>
-            <CardDescription>
-              Run heuristic predictions for your current squad (uses recent form data)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button onClick={handleTestPredictions} variant="default">
-              Generate Predictions (Heuristic)
-            </Button>
-            {predictionStatus && (
-              <div className="text-sm">
-                {predictionStatus}
-              </div>
-            )}
-            <div className="text-xs text-muted-foreground mt-4">
-              Note: Heuristic predictions use simple statistics (weighted averages, role lock detection).
-              For ML-based predictions, deploy the Python FastAPI service.
-            </div>
           </CardContent>
         </Card>
 
@@ -257,26 +181,71 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        {/* Next Steps */}
+        {/* Automation Status */}
         <Card>
           <CardHeader>
-            <CardTitle>Next Steps</CardTitle>
+            <CardTitle>Automation Status</CardTitle>
+            <CardDescription>
+              The system runs automatically - no weekly maintenance required
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex items-start gap-2">
+              <Badge variant="default" className="mt-0.5">AUTO</Badge>
+              <div>
+                <div className="font-medium">Daily Player Sync</div>
+                <div className="text-muted-foreground">
+                  Runs every day at 2:00 AM UTC - updates prices, injuries, news
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Badge variant="default" className="mt-0.5">AUTO</Badge>
+              <div>
+                <div className="font-medium">Daily Fixture Sync</div>
+                <div className="text-muted-foreground">
+                  Runs every day at 2:15 AM UTC - tracks postponements, reschedules
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Badge variant="default" className="mt-0.5">AUTO</Badge>
+              <div>
+                <div className="font-medium">Weekly Prediction Generation</div>
+                <div className="text-muted-foreground">
+                  Runs every Saturday at 6:00 AM UTC - regenerates xMins for all 725 players
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Badge variant="outline" className="mt-0.5">PENDING</Badge>
+              <div>
+                <div className="font-medium">Cron Jobs Deployment</div>
+                <div className="text-muted-foreground">
+                  Will be activated in Phase 2E (next session)
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quick Links */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Links</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div>
-              1. ✅ Run Steps 1-3 above to initialize the system
+              📊 <a href="/minutes-lab" className="underline text-blue-600 hover:text-blue-800">/minutes-lab</a> - View xMins predictions for all 725 players
             </div>
             <div>
-              2. 🔄 Go to <a href="/minutes-lab" className="underline text-blue-600">/minutes-lab</a> to view predictions
+              ⚽ <a href="/captain" className="underline text-blue-600 hover:text-blue-800">/captain</a> - Optimize captain selection with EO shields
             </div>
             <div>
-              3. 🔄 Your captain/XI pages will automatically use predicted xMins
+              🎯 <a href="/xi" className="underline text-blue-600 hover:text-blue-800">/xi</a> - Optimize starting XI with bench probabilities
             </div>
             <div>
-              4. 🔄 Set up Convex cron job for weekly auto-updates
-            </div>
-            <div>
-              5. 🚀 (Optional) Deploy Python FastAPI service for ML predictions
+              ⚙️ <a href="/settings" className="underline text-blue-600 hover:text-blue-800">/settings</a> - Configure risk tolerance and model parameters
             </div>
           </CardContent>
         </Card>
