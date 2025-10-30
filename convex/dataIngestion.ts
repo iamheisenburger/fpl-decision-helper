@@ -51,25 +51,36 @@ export const syncPlayers = action({
             name: fplPlayer.web_name,
           });
 
+          // Parse injury and availability data
+          const status = fplPlayer.status || "a"; // Default to available if missing
+          const news = fplPlayer.news || "";
+          const newsAdded = fplPlayer.news_added
+            ? new Date(fplPlayer.news_added).getTime()
+            : Date.now();
+          const chanceOfPlayingNextRound = fplPlayer.chance_of_playing_next_round;
+
+          const playerData = {
+            name: fplPlayer.web_name,
+            position,
+            price: fplPlayer.now_cost / 10,
+            team: team.name,
+            fplId: fplPlayer.id,
+            status,
+            news: news.length > 0 ? news : undefined,
+            newsAdded,
+            chanceOfPlayingNextRound: chanceOfPlayingNextRound !== null ? chanceOfPlayingNextRound : undefined,
+            lastPriceUpdate: Date.now(),
+          };
+
           if (existingPlayer) {
             // Update existing player
             await ctx.runMutation(api.players.updatePlayer, {
               id: existingPlayer._id,
-              name: fplPlayer.web_name,
-              position,
-              price: fplPlayer.now_cost / 10,
-              team: team.name,
-              fplId: fplPlayer.id,
+              ...playerData,
             });
           } else {
             // Create new player
-            await ctx.runMutation(api.players.addPlayer, {
-              name: fplPlayer.web_name,
-              position,
-              price: fplPlayer.now_cost / 10,
-              team: team.name,
-              fplId: fplPlayer.id,
-            });
+            await ctx.runMutation(api.players.addPlayer, playerData);
           }
 
           syncedPlayers.push({

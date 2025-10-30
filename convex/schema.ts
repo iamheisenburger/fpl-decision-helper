@@ -14,6 +14,15 @@ export default defineSchema({
     price: v.number(), // in millions (e.g., 12.5)
     team: v.string(),
     fplId: v.optional(v.number()), // FPL API player ID for fetching historical data
+
+    // Injury and availability tracking (from FPL API)
+    status: v.optional(v.string()), // "a" = available, "d" = doubtful, "i" = injured, "s" = suspended, "u" = unavailable, "n" = not in squad
+    news: v.optional(v.string()), // Injury/news description text from FPL API
+    newsAdded: v.optional(v.number()), // Timestamp when news was added (epoch milliseconds)
+    chanceOfPlayingNextRound: v.optional(v.number()), // 0, 25, 50, 75, 100, or null
+
+    // Price change tracking
+    lastPriceUpdate: v.optional(v.number()), // Timestamp of last price sync (epoch milliseconds)
   })
     .index("by_name", ["name"])
     .index("by_fplId", ["fplId"]),

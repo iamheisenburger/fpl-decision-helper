@@ -234,7 +234,28 @@ export default function MinutesLabPage() {
                 <div className="col-span-1 text-center text-muted-foreground">-</div>
                 <div className="col-span-1 text-center text-muted-foreground">-</div>
                 <div className="col-span-2 text-center">
-                  <Badge variant="secondary">Not Generated</Badge>
+                  {/* Injury Status Badges */}
+                  {player.status === "i" || (player.chanceOfPlayingNextRound !== undefined && player.chanceOfPlayingNextRound < 50) ? (
+                    <Badge variant="destructive" className="cursor-help" title={player.news || "Injured"}>
+                      Injured {player.chanceOfPlayingNextRound !== undefined ? `(${player.chanceOfPlayingNextRound}%)` : ""}
+                    </Badge>
+                  ) : player.status === "d" || player.chanceOfPlayingNextRound === 50 || player.chanceOfPlayingNextRound === 75 ? (
+                    <Badge variant="outline" className="border-yellow-500 text-yellow-700 cursor-help" title={player.news || "Doubtful"}>
+                      Doubtful ({player.chanceOfPlayingNextRound}%)
+                    </Badge>
+                  ) : player.status === "s" ? (
+                    <Badge variant="destructive" className="cursor-help" title={player.news || "Suspended"}>
+                      Suspended
+                    </Badge>
+                  ) : player.status === "u" ? (
+                    <Badge variant="secondary" className="cursor-help" title={player.news || "Unavailable"}>
+                      Unavailable
+                    </Badge>
+                  ) : (
+                    <Badge variant="default" className="bg-green-600 cursor-help" title="Available to play">
+                      Available
+                    </Badge>
+                  )}
                 </div>
                 <div className="col-span-1">
                   <Button variant="ghost" size="sm" disabled>

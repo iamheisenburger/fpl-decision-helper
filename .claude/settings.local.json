@@ -1,28 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git rev-parse:*)",
-      "Read(//c/Users/arshadhakim/OneDrive/Desktop/**)",
-      "Bash(npm install:*)",
-      "Bash(git init:*)",
-      "Bash(git remote add:*)",
-      "Bash(git branch:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(git pull:*)",
-      "Bash(git rm:*)",
-      "Bash(git reset:*)",
-      "Bash(npx convex deploy:*)",
-      "Bash(npx convex dev:*)",
-      "Bash(npm run dev:*)",
-      "Bash(npm run build:*)",
-      "Bash(npx convex run:*)",
-      "Bash(cat:*)",
-      "Bash(powershell -Command:*)",
-      "Bash(node -e:*)",
-      "Bash(curl:*)",
-      "Bash(vercel --version:*)"
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

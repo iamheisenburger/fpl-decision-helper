@@ -44,6 +44,11 @@ export const addPlayer = mutation({
     price: v.number(),
     team: v.string(),
     fplId: v.optional(v.number()),
+    status: v.optional(v.string()),
+    news: v.optional(v.string()),
+    newsAdded: v.optional(v.number()),
+    chanceOfPlayingNextRound: v.optional(v.number()),
+    lastPriceUpdate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("players", {
@@ -52,6 +57,11 @@ export const addPlayer = mutation({
       price: args.price,
       team: args.team,
       fplId: args.fplId,
+      status: args.status,
+      news: args.news,
+      newsAdded: args.newsAdded,
+      chanceOfPlayingNextRound: args.chanceOfPlayingNextRound,
+      lastPriceUpdate: args.lastPriceUpdate,
     });
   },
 });
@@ -65,6 +75,11 @@ export const updatePlayer = mutation({
     price: v.optional(v.number()),
     team: v.optional(v.string()),
     fplId: v.optional(v.number()),
+    status: v.optional(v.string()),
+    news: v.optional(v.string()),
+    newsAdded: v.optional(v.number()),
+    chanceOfPlayingNextRound: v.optional(v.number()),
+    lastPriceUpdate: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
