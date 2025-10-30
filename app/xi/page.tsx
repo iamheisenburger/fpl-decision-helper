@@ -37,27 +37,22 @@ function calculateRAEV(
   },
   settings: {
     xiEoRate: number;
-    xMinsThreshold: number;
-    xMinsPenalty: number;
   }
 ): number {
   const p90 = calculateP90(player.xMins);
 
-  // Ceiling bonus: reward EV95 upside weighted by minutes confidence (P90)
-  // P90 naturally controls probability based on xMins confidence
-  const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
+  // Ceiling bonus: reward EV95 upside weighted by P90
+  // P90 already weights ceiling probability
+  const ceilingBonus = (player.ev95 - player.ev) * p90;
 
-  // EO shield bonus: 0.1 EV per 15% EO (applied to ALL players proportionally)
+  // EO shield: 0.1 EV per 15% EO (applied to ALL players proportionally)
   // Example: 5.6% EO = (5.6/15) * 0.1 = 0.037, 64.4% EO = (64.4/15) * 0.1 = 0.43
   const eoShield = (player.eo / 15) * settings.xiEoRate;
-
-  // xMins floor penalty: penalize players with risky minutes
-  const xMinsPenalty = player.xMins < settings.xMinsThreshold ? settings.xMinsPenalty : 0;
 
   // Variance penalty: uncertainty increases as player strays from 95 xMins
   const variancePenalty = calculateVariancePenalty(player.xMins);
 
-  return player.ev + ceilingBonus + eoShield - xMinsPenalty - variancePenalty;
+  return player.ev + ceilingBonus + eoShield - variancePenalty;
 }
 
 type Position = "GK" | "DEF" | "MID" | "FWD";

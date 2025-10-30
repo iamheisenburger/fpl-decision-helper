@@ -30,7 +30,7 @@ function calculateVariancePenalty(xMins: number): number {
 // Calculate Total Score: EV + ceiling bonus + EO shield - variance penalty
 function calculateTotalScore(player: { ev: number; ev95: number; xMins: number; eo: number }, eoRate: number): number {
   const p90 = calculateP90(player.xMins);
-  const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
+  const ceilingBonus = (player.ev95 - player.ev) * p90;
   const eoShield = (player.eo / 10) * eoRate;
   const variancePenalty = calculateVariancePenalty(player.xMins);
   return player.ev + ceilingBonus + eoShield - variancePenalty;
@@ -111,8 +111,8 @@ export default function CaptainPage() {
     const p90Alt = calculateP90(alt.xMins);
 
     // Calculate ceiling bonuses for display
-    const highEOCeilingBonus = (highEO.ev95 - highEO.ev) * p90HighEO * 0.5;
-    const altCeilingBonus = (alt.ev95 - alt.ev) * p90Alt * 0.5;
+    const highEOCeilingBonus = (highEO.ev95 - highEO.ev) * p90HighEO;
+    const altCeilingBonus = (alt.ev95 - alt.ev) * p90Alt;
 
     // Calculate EO shields for display
     const highEOEoShield = (highEO.eo / 10) * settings.captaincyEoRate;

@@ -54,8 +54,8 @@ export function calculateVariancePenalty(xMins: number): number {
  * @param eoRate - EV per 10% EO (default: 0.1 for captaincy)
  * @returns Total score (EV + ceiling bonus + EO shield - variance penalty)
  *
- * Formula: EV + (EV95 - EV) × P90 × 0.5 + (EO/10 × eoRate) - variancePenalty
- * P90 controls ceiling probability, EO shield rewards ownership, variance penalty accounts for xMins uncertainty
+ * Formula: EV + (EV95 - EV) × P90 + (EO/10 × eoRate) - variancePenalty
+ * P90 already weights ceiling probability, EO shield rewards ownership, variance penalty accounts for xMins uncertainty
  */
 export function calculateTotalScore(
   player: {
@@ -67,39 +67,20 @@ export function calculateTotalScore(
   eoRate: number = 0.1
 ): number {
   const p90 = calculateP90(player.xMins);
-  const ceilingBonus = (player.ev95 - player.ev) * p90 * 0.5;
+  const ceilingBonus = (player.ev95 - player.ev) * p90;
   const eoShield = (player.eo / 10) * eoRate;
   const variancePenalty = calculateVariancePenalty(player.xMins);
   return player.ev + ceilingBonus + eoShield - variancePenalty;
 }
 
 /**
- * Calculate xMins penalty if player has risky minutes
- * @param xMins - Expected minutes
- * @param threshold - Minimum safe minutes threshold (default: 70)
- * @param penalty - Penalty amount in EV (default: 0.3)
- * @returns Penalty in EV units (0 if above threshold)
- */
-export function calculateXMinsPenalty(
-  xMins: number,
-  threshold: number = 70,
-  penalty: number = 0.3
-): number {
-  return xMins < threshold ? penalty : 0;
-}
-
-/**
  * Calculate Risk-Adjusted EV (RAEV) for a player in XI selection
  * @param player - Player with EV, EV95, xMins, EO
- * @param templateEo - Template/benchmark EO for comparison
- * @param templateEv95P90 - Template/benchmark EV95×P90 for comparison
- * @param settings - User settings for EO rate, cap, and rMins weight
+ * @param settings - User settings for EO rate
  * @returns RAEV value
  *
- * Formula:
- * RAEV = EV
- *        - rMins_surcharge (if player has less upside than template)
- *        + EO_shield_bonus (if player has higher EO than template)
+ * Formula: EV + (EV95 - EV) × P90 + (EO/15 × eoRate) - variancePenalty
+ * P90 already weights ceiling probability, EO shield rewards ownership, variance penalty accounts for xMins uncertainty
  */
 export function calculateRAEV(
   player: {
@@ -108,33 +89,22 @@ export function calculateRAEV(
     xMins: number;
     eo: number;
   },
-  templateEo: number,
-  templateEv95P90: number,
   settings: {
     xiEoRate: number;
-    xiEoCap: number;
   }
 ): number {
-  let raev = player.ev;
+  const p90 = calculateP90(player.xMins);
 
-  // rMins surcharge: penalize if player has less upside than template
-  // P90 naturally controls probability based on xMins confidence
-  const playerUpside = player.ev95 * calculateP90(player.xMins);
-  const rMinsSurcharge = 0.5 * Math.max(0, templateEv95P90 - playerUpside);
-  raev -= rMinsSurcharge;
+  // Ceiling bonus: reward EV95 upside weighted by P90
+  const ceilingBonus = (player.ev95 - player.ev) * p90;
 
-  // EO shield bonus: 0.1 EV per 15% EO (applied to ALL players proportionally)
-  const shieldBonus = Math.min(
-    settings.xiEoCap,
-    (player.eo / 15) * settings.xiEoRate
-  );
-  raev += shieldBonus;
+  // EO shield: 0.1 EV per 15% EO (applied to ALL players proportionally)
+  const eoShield = (player.eo / 15) * settings.xiEoRate;
 
   // Variance penalty: uncertainty increases as player strays from 95 xMins
   const variancePenalty = calculateVariancePenalty(player.xMins);
-  raev -= variancePenalty;
 
-  return raev;
+  return player.ev + ceilingBonus + eoShield - variancePenalty;
 }
 
 /**

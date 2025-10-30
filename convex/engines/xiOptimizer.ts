@@ -100,17 +100,6 @@ export const optimizeXI = query({
 
       if (!gwData) continue;
 
-      // Get template for this position
-      const template = await ctx.db
-        .query("templates")
-        .withIndex("by_position_gameweek", (q) =>
-          q.eq("position", player.position).eq("gameweek", args.gameweek)
-        )
-        .first();
-
-      const templateEo = template?.baselineEo ?? 50; // default to 50% if no template
-      const templateEv95P90 = template?.baselineEv95P90 ?? 5.0; // default benchmark
-
       const raev = calculateRAEV(
         {
           ev: gwData.ev,
@@ -118,11 +107,8 @@ export const optimizeXI = query({
           xMins: gwData.xMins,
           eo: gwData.eo,
         },
-        templateEo,
-        templateEv95P90,
         {
           xiEoRate: settings.xiEoRate,
-          xiEoCap: settings.xiEoCap,
         }
       );
 

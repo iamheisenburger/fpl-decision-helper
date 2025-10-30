@@ -96,8 +96,8 @@ export const analyzeCaptaincy = query({
     const p90Alt = calculateP90(alt.gw.xMins);
 
     // Calculate ceiling bonuses for display
-    const highEOCeilingBonus = (highEO.gw.ev95 - highEO.gw.ev) * p90HighEO * 0.5;
-    const altCeilingBonus = (alt.gw.ev95 - alt.gw.ev) * p90Alt * 0.5;
+    const highEOCeilingBonus = (highEO.gw.ev95 - highEO.gw.ev) * p90HighEO;
+    const altCeilingBonus = (alt.gw.ev95 - alt.gw.ev) * p90Alt;
 
     // Calculate EO shields for display
     const highEOEoShield = (highEO.gw.eo / 10) * settings.captaincyEoRate;
