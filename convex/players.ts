@@ -16,6 +16,17 @@ export const getPlayer = query({
   },
 });
 
+// Get player by name
+export const getPlayerByName = query({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("players")
+      .withIndex("by_name", (q) => q.eq("name", args.name))
+      .first();
+  },
+});
+
 // Get players by position
 export const getPlayersByPosition = query({
   args: { position: v.union(v.literal("GK"), v.literal("DEF"), v.literal("MID"), v.literal("FWD")) },

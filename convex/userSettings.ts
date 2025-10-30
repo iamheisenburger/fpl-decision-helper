@@ -18,6 +18,11 @@ export const getSettings = query({
         weeklyBleedBudget: 0.8,
         defaultHoldLength: 8,
         transferGainThreshold: 0.5,
+        xMinsRecencyWindow: 8,
+        xMinsMinHealthyStarts: 5,
+        xMinsRecencyWeights: [0.6, 0.3, 0.1],
+        xMinsRoleLockThreshold: 3,
+        xMinsUseModel: true,
       };
     }
 
@@ -37,6 +42,11 @@ export const upsertSettings = mutation({
     weeklyBleedBudget: v.optional(v.number()),
     defaultHoldLength: v.optional(v.number()),
     transferGainThreshold: v.optional(v.number()),
+    xMinsRecencyWindow: v.optional(v.number()),
+    xMinsMinHealthyStarts: v.optional(v.number()),
+    xMinsRecencyWeights: v.optional(v.array(v.number())),
+    xMinsRoleLockThreshold: v.optional(v.number()),
+    xMinsUseModel: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("userSettings").first();
@@ -53,6 +63,11 @@ export const upsertSettings = mutation({
       if (args.weeklyBleedBudget !== undefined) updates.weeklyBleedBudget = args.weeklyBleedBudget;
       if (args.defaultHoldLength !== undefined) updates.defaultHoldLength = args.defaultHoldLength;
       if (args.transferGainThreshold !== undefined) updates.transferGainThreshold = args.transferGainThreshold;
+      if (args.xMinsRecencyWindow !== undefined) updates.xMinsRecencyWindow = args.xMinsRecencyWindow;
+      if (args.xMinsMinHealthyStarts !== undefined) updates.xMinsMinHealthyStarts = args.xMinsMinHealthyStarts;
+      if (args.xMinsRecencyWeights !== undefined) updates.xMinsRecencyWeights = args.xMinsRecencyWeights;
+      if (args.xMinsRoleLockThreshold !== undefined) updates.xMinsRoleLockThreshold = args.xMinsRoleLockThreshold;
+      if (args.xMinsUseModel !== undefined) updates.xMinsUseModel = args.xMinsUseModel;
 
       await ctx.db.patch(existing._id, updates);
       return existing._id;
@@ -68,6 +83,11 @@ export const upsertSettings = mutation({
         weeklyBleedBudget: args.weeklyBleedBudget ?? 0.8,
         defaultHoldLength: args.defaultHoldLength ?? 8,
         transferGainThreshold: args.transferGainThreshold ?? 0.5,
+        xMinsRecencyWindow: args.xMinsRecencyWindow ?? 8,
+        xMinsMinHealthyStarts: args.xMinsMinHealthyStarts ?? 5,
+        xMinsRecencyWeights: args.xMinsRecencyWeights ?? [0.6, 0.3, 0.1],
+        xMinsRoleLockThreshold: args.xMinsRoleLockThreshold ?? 3,
+        xMinsUseModel: args.xMinsUseModel ?? true,
       });
     }
   },
@@ -88,6 +108,11 @@ export const resetSettings = mutation({
       weeklyBleedBudget: 0.8,
       defaultHoldLength: 8,
       transferGainThreshold: 0.5,
+      xMinsRecencyWindow: 8,
+      xMinsMinHealthyStarts: 5,
+      xMinsRecencyWeights: [0.6, 0.3, 0.1],
+      xMinsRoleLockThreshold: 3,
+      xMinsUseModel: true,
     };
 
     if (existing) {
