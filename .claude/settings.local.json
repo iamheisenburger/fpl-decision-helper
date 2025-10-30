@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(if exist nul del /f nul)"
     ],
     "deny": [],
     "ask": []

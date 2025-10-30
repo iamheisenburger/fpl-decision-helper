@@ -196,18 +196,38 @@ export const getTeamFixtureRun = query({
     const result = [];
 
     for (let gw = args.startGameweek; gw <= args.endGameweek; gw++) {
-      const fixtureDifficulty = await ctx.runQuery(
-        api.fixtures.getTeamFixtureDifficulty,
-        {
-          teamId: args.teamId,
-          gameweek: gw,
-        }
+      // Find fixture directly
+      const fixtures = await ctx.db
+        .query("fixtures")
+        .withIndex("by_gameweek", (q) => q.eq("gameweek", gw))
+        .collect();
+
+      const fixture = fixtures.find(
+        (f) => f.homeTeamId === args.teamId || f.awayTeamId === args.teamId
       );
 
-      result.push({
-        gameweek: gw,
-        ...fixtureDifficulty,
-      });
+      if (fixture) {
+        const isHome = fixture.homeTeamId === args.teamId;
+        result.push({
+          gameweek: gw,
+          difficulty: isHome ? fixture.homeTeamDifficulty : fixture.awayTeamDifficulty,
+          opponent: isHome ? fixture.awayTeam : fixture.homeTeam,
+          opponentId: isHome ? fixture.awayTeamId : fixture.homeTeamId,
+          isHome,
+          kickoffTime: fixture.kickoffTime,
+          postponed: fixture.postponed,
+        });
+      } else {
+        result.push({
+          gameweek: gw,
+          difficulty: null,
+          opponent: null,
+          opponentId: null,
+          isHome: null,
+          kickoffTime: null,
+          postponed: false,
+        });
+      }
     }
 
     return result;

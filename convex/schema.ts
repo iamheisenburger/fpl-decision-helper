@@ -224,4 +224,26 @@ export default defineSchema({
     .index("by_gameweek", ["gameweek"])
     .index("by_fplId", ["fplId"])
     .index("by_team_gameweek", ["homeTeamId", "gameweek"]),
+
+  // Depth charts - maps starters to their backups
+  // Used for teammate xMins boost when starters are injured
+  // NOTE: Empty by default - populate manually or via inference
+  depthCharts: defineTable({
+    teamId: v.number(), // FPL team ID
+    position: v.union(
+      v.literal("GK"),
+      v.literal("DEF"),
+      v.literal("MID"),
+      v.literal("FWD")
+    ),
+    starterPlayerId: v.id("players"), // The regular starter
+    backup1PlayerId: v.optional(v.id("players")), // First backup
+    backup2PlayerId: v.optional(v.id("players")), // Second backup
+    confidence: v.optional(v.number()), // 0-1, how confident we are in this depth chart
+    lastUpdated: v.number(), // Timestamp
+    source: v.optional(v.string()), // "manual", "inferred", "scraped"
+  })
+    .index("by_team", ["teamId"])
+    .index("by_starter", ["starterPlayerId"])
+    .index("by_team_position", ["teamId", "position"]),
 });

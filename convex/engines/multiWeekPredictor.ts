@@ -325,10 +325,10 @@ export const getPlayerOutlook = action({
       },
       predictions,
       summary: {
-        avgXMins: predictions.reduce((sum, p) => sum + p.xMinsStart, 0) / predictions.length,
-        avgConfidence: predictions.reduce((sum, p) => sum + p.confidence, 0) / predictions.length,
-        weeksUnavailable: predictions.filter((p) => p.xMinsStart === 0).length,
-        weeksInRecovery: predictions.filter((p) => p.recoveryPhase).length,
+        avgXMins: predictions.reduce((sum: number, p: any) => sum + p.xMinsStart, 0) / predictions.length,
+        avgConfidence: predictions.reduce((sum: number, p: any) => sum + p.confidence, 0) / predictions.length,
+        weeksUnavailable: predictions.filter((p: any) => p.xMinsStart === 0).length,
+        weeksInRecovery: predictions.filter((p: any) => p.recoveryPhase).length,
       },
     };
   },

@@ -270,8 +270,8 @@ export const calculatePositionPriors = query({
 
       // Filter by position (need to join with players)
       for (const app of gwAppearances) {
-        const player = await ctx.db.get(app.playerId);
-        if (player?.position === args.position) {
+        const player: any = await ctx.db.get(app.playerId);
+        if (player && player.position === args.position) {
           allAppearances.push(app);
         }
       }

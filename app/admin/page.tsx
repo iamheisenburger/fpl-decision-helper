@@ -252,7 +252,7 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3 text-sm">
-              {latestSyncs?.map((sync) => {
+              {latestSyncs?.map((sync: any) => {
                 const lastSync = sync.lastSync;
                 const timeSince = lastSync
                   ? Math.round((Date.now() - lastSync.timestamp) / (1000 * 60))
