@@ -345,7 +345,7 @@ export const generateSquadPredictions = action({
   args: {
     gameweek: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<any> => {
     try {
       const season = getCurrentSeason();
 
@@ -451,8 +451,6 @@ export const generateSquadPredictions = action({
           const prediction = await ctx.runQuery(api.engines.xMinsHeuristic.predictWithHeuristic, {
             playerId: player._id,
             gameweek: args.gameweek,
-            excludeInjury: true,
-            excludeRedCard: true,
             recencyWindow: 8,
           });
 

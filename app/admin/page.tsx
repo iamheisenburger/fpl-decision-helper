@@ -50,15 +50,15 @@ export default function AdminPage() {
   const handleTestPredictions = async () => {
     setPredictionStatus("Generating test predictions (this may take 1-2 minutes)...");
     try {
-      // Use current gameweek from settings, or default to 10
-      const currentGW = settings?.currentGameweek || 10;
+      // Default to gameweek 10 (you can change this as needed)
+      const currentGW = 10;
       const result = await generateSquadPredictions({ gameweek: currentGW });
 
       if (result.success) {
         setPredictionStatus(
           `✅ ${result.message}\n` +
           `Successfully generated: ${result.successCount}, Failed: ${result.failedCount}\n` +
-          (result.errors.length > 0 ? `Errors: ${result.errors.map(e => `${e.playerName}: ${e.error}`).join(', ')}` : '')
+          (result.errors.length > 0 ? `Errors: ${result.errors.map((e: any) => `${e.playerName}: ${e.error}`).join(', ')}` : '')
         );
       } else {
         setPredictionStatus(`❌ Error: ${result.error}`);
