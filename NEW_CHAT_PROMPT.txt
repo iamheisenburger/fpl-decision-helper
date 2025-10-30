@@ -1,0 +1,83 @@
+I have an FPL Decision Helper app that needs a fully automated xMins prediction system built out. I've completed Phase 1 (basic heuristics) and need you to build Phases 2-5.
+
+**CRITICAL: Read these files first for full context:**
+- @HANDOFF_TO_NEW_CHAT.md (complete handoff document with current state)
+- @IMPLEMENTATION_ROADMAP.md (detailed 8-12 week roadmap)
+- @XMINS_GUIDE.md (user guide for current system)
+
+**Repository & Deployment Info:**
+- GitHub: https://github.com/iamheisenburger/fpl-decision-helper
+- Convex Production: https://zany-tern-775.convex.cloud
+- Vercel Production: https://fpl-decision-helper.vercel.app
+- My FPL Team ID: 14125
+- Current Gameweek: 9
+
+**Tech Stack:**
+- Next.js 15 + TypeScript (strict mode)
+- Convex (serverless backend + database)
+- FPL Official API (https://fantasy.premierleague.com/api/)
+- FastAPI (Python ML service - not yet deployed)
+
+**What's Already Built (Phase 1):**
+✅ FPL API integration (players, fixtures, historical data)
+✅ Basic heuristic predictions (recency-weighted, role lock detection)
+✅ FPL Team ID import (syncs user squad from FPL API)
+✅ Minutes Lab UI (shows all 725 players with search/filter)
+✅ Admin page (manual data sync)
+✅ Database schema (players, appearances, xmins, overrides, context, depth)
+
+**What I Need You to Build (Phases 2-5):**
+
+❌ PHASE 2: AUTOMATION (MOST URGENT)
+   - Convex cron jobs for daily automatic sync (prices, injuries, fixtures)
+   - Weekly automatic prediction regeneration
+   - Dynamic gameweek detection (no hardcoded GW numbers)
+   - Injury status tracking from FPL API (25%/50%/75%/unknown)
+   - Manager change tracking
+
+❌ PHASE 3: 14-WEEK PREDICTIONS
+   - Extend predictions from next GW only → 14 weeks ahead (GW N+1 to N+14)
+   - Fixture difficulty integration (adjust xMins based on opponent)
+   - Confidence decay (95% for next GW, declining to 60% for GW+14)
+   - Injury projection (estimate return dates, model recovery curves)
+   - Rotation pattern detection
+
+❌ PHASE 4: BATCH GENERATION
+   - Generate predictions for ALL 725 players (not just my squad)
+   - Parallel processing with rate limiting
+   - "Generate All Predictions" button in admin page
+
+❌ PHASE 5: ML MODELS
+   - Deploy FastAPI service to Render/Railway
+   - Train two-stage model: logistic regression + Weibull AFT survival
+   - Integrate ML predictions with Convex
+   - Target: 85-90% accuracy (vs current 70-80% heuristic)
+
+**My Non-Negotiable Requirements:**
+1. FULL AUTOMATION - I don't want to do ANY manual work each week
+2. 14-WEEK PREDICTIONS - Not just next gameweek
+3. ALL 725 PLAYERS - Not just my squad
+4. ML-POWERED - 85-90% accuracy target
+5. INJURY TRACKING - Including teammate impact modeling (e.g., Havertz out → Gyokeres xMins boost)
+6. LOCAL BUILD TESTING - MUST run `npm run build` and verify it passes BEFORE pushing to GitHub
+
+**Development Workflow You MUST Follow:**
+1. Make code changes
+2. Test locally: `npm run build` (MUST pass)
+3. If build passes: `git add . && git commit -m "..." && git push`
+4. For Convex changes: `npx convex deploy`
+5. Monitor Vercel deployment
+
+**Where to Start:**
+I recommend starting with Phase 2 (Automation) because that's my biggest pain point. Set up Convex cron jobs so the system updates automatically every day without me having to click buttons.
+
+**Output Format:**
+Eventually, I need this data exportable to FPL Review's xMins format (14-week grid with xMins/P90 for all players).
+
+**Timeline:**
+You estimated 8-12 weeks for full implementation. I'm okay with incremental progress as long as:
+- Each phase is fully tested before moving to next
+- Build errors are caught locally before pushing
+- You communicate clearly what's done vs what's remaining
+
+Can you start by confirming you've read the handoff documents and propose a specific implementation plan for Phase 2 (Automation)?
