@@ -1,6 +1,13 @@
 """
 Data Ingestion Script for FPL ML Training
-Downloads and processes 3 seasons of historical data (2022-23, 2023-24, 2024-25)
+Downloads and processes 2 seasons of historical data (2024-25, 2025-26)
+Current season: 2025-26 (GW9 as of now)
+
+Why only 2 seasons?
+- Recent data > historical noise
+- Managers, teams, tactics change year-over-year
+- Meta changes (VAR, rules, fixture congestion)
+- Quality over quantity for ML training
 """
 
 import requests
@@ -13,8 +20,8 @@ import time
 # GitHub repo with historical FPL data
 GITHUB_BASE = "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data"
 
-# Seasons to fetch
-SEASONS = ["2022-23", "2023-24", "2024-25"]
+# Seasons to fetch (ONLY recent seasons - see NORTH_STAR.md)
+SEASONS = ["2024-25", "2025-26"]
 
 # Output directory
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -23,13 +30,13 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 def fetch_fpl_current_season() -> pd.DataFrame:
     """
-    Fetch current season (2024-25) data from live FPL API.
+    Fetch current season (2025-26) data from live FPL API.
 
     Returns:
         DataFrame with columns: player_id, player_name, gameweek, season, started,
                                minutes, opponent, home_away, position, team, etc.
     """
-    print("Fetching current season (2024-25) from FPL API...")
+    print("Fetching current season (2025-26) from FPL API...")
 
     # Get bootstrap data for player/team mapping
     bootstrap = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/").json()
@@ -71,7 +78,7 @@ def fetch_fpl_current_season() -> pd.DataFrame:
                     'team': team,
                     'price': price,
                     'gameweek': match['round'],
-                    'season': '2024-25',
+                    'season': '2025-26',
                     'started': match['starts'] == 1,
                     'minutes': match['minutes'],
                     'opponent': team_map.get(match['opponent_team'], 'Unknown'),
@@ -92,7 +99,7 @@ def fetch_fpl_current_season() -> pd.DataFrame:
             continue
 
     df = pd.DataFrame(all_data)
-    print(f"✅ Fetched {len(df)} appearances for 2024-25 season")
+    print(f"✅ Fetched {len(df)} appearances for 2025-26 season")
     return df
 
 
@@ -201,26 +208,25 @@ def add_position_and_team(df: pd.DataFrame, season: str) -> pd.DataFrame:
 
 def create_training_dataset() -> pd.DataFrame:
     """
-    Fetch all 3 seasons and combine into single training dataset.
+    Fetch 2 recent seasons and combine into single training dataset.
 
     Returns:
         Combined DataFrame ready for feature engineering
     """
     all_seasons = []
 
-    # Fetch historical seasons (2022-23, 2023-24) from GitHub
-    for season in ["2022-23", "2023-24"]:
-        df = fetch_historical_season(season)
-        if not df.empty:
-            df = add_position_and_team(df, season)
-            all_seasons.append(df)
-            print(f"  ✅ {season}: {len(df)} appearances")
+    # Fetch 2024-25 (full season) from GitHub
+    df_2024 = fetch_historical_season("2024-25")
+    if not df_2024.empty:
+        df_2024 = add_position_and_team(df_2024, "2024-25")
+        all_seasons.append(df_2024)
+        print(f"  ✅ 2024-25: {len(df_2024)} appearances")
 
-    # Fetch current season (2024-25) from live API
+    # Fetch current season (2025-26) from live API
     current_df = fetch_fpl_current_season()
     if not current_df.empty:
         all_seasons.append(current_df)
-        print(f"  ✅ 2024-25: {len(current_df)} appearances")
+        print(f"  ✅ 2025-26: {len(current_df)} appearances")
 
     # Combine all seasons
     if not all_seasons:

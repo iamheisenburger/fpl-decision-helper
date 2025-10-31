@@ -54,9 +54,10 @@ cd ml-service
 python scripts/ingest_historical_data.py
 
 # Expected output:
-#   ✅ 2022-23: ~27,000 appearances
-#   ✅ 2023-24: ~27,000 appearances
-#   ✅ 2024-25: ~9,000 appearances (GW1-9 so far)
+#   ✅ 2022-23: ~27,000 appearances (full season)
+#   ✅ 2023-24: ~27,000 appearances (full season)
+#   ✅ 2024-25: ~27,000 appearances (full season)
+#   ✅ 2025-26: ~9,000 appearances (GW1-9 so far)
 #   💾 Saved to: data/training_data_raw.csv
 
 # 2. Engineer ML features
