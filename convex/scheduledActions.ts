@@ -101,6 +101,55 @@ export const dailyContextSync = internalAction({
 });
 
 /**
+ * Daily fixture sync (called by 2:30 AM cron)
+ */
+export const dailyFixtureSync = internalAction({
+  args: {},
+  handler: async (ctx): Promise<void> => {
+    try {
+      console.log("[CRON] Starting daily fixture sync...");
+
+      const result = await ctx.runAction(api.fixtures.syncFixtures, {});
+
+      if (result.success) {
+        console.log(
+          `[CRON] ✅ Fixture sync complete: ${result.synced} new, ${result.updated} updated`
+        );
+
+        // Log success
+        await ctx.runMutation(api.syncLogs.logSync, {
+          syncType: "fixtures",
+          status: "success",
+          details: JSON.stringify({
+            synced: result.synced,
+            updated: result.updated,
+            total: result.total,
+          }),
+        });
+      } else {
+        console.error("[CRON] ❌ Fixture sync failed:", result.error);
+
+        // Log failure
+        await ctx.runMutation(api.syncLogs.logSync, {
+          syncType: "fixtures",
+          status: "failed",
+          errorMessage: result.error,
+        });
+      }
+    } catch (error) {
+      console.error("[CRON] ❌ Fatal error in fixture sync:", error);
+
+      // Log fatal error
+      await ctx.runMutation(api.syncLogs.logSync, {
+        syncType: "fixtures",
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
+  },
+});
+
+/**
  * Generate 14-week predictions for ALL players (called by Saturday cron)
  *
  * Automatically detects current gameweek and generates predictions for GW+1 through GW+14.

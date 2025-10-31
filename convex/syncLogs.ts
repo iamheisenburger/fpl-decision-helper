@@ -6,7 +6,7 @@ import { v } from "convex/values";
  */
 export const getLatestSyncs = query({
   handler: async (ctx) => {
-    const syncTypes = ["players", "context", "predictions", "pre-deadline"] as const;
+    const syncTypes = ["players", "context", "fixtures", "predictions", "pre-deadline"] as const;
 
     const latestSyncs = await Promise.all(
       syncTypes.map(async (type) => {
@@ -53,6 +53,7 @@ export const logSync = mutation({
     syncType: v.union(
       v.literal("players"),
       v.literal("context"),
+      v.literal("fixtures"),
       v.literal("predictions"),
       v.literal("pre-deadline")
     ),

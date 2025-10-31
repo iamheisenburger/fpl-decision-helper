@@ -194,6 +194,7 @@ export default defineSchema({
     syncType: v.union(
       v.literal("players"),
       v.literal("context"),
+      v.literal("fixtures"),
       v.literal("predictions"),
       v.literal("pre-deadline")
     ),

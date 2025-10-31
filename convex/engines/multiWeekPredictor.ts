@@ -77,6 +77,23 @@ export const predictMultiWeek = action({
       return [];
     }
 
+    // Fetch player's team ID once (avoid repeated API calls in loop)
+    let playerTeamId: number | null = null;
+    if (player.fplId) {
+      try {
+        const bootstrapResponse = await fetch(
+          "https://fantasy.premierleague.com/api/bootstrap-static/"
+        );
+        const bootstrapData = await bootstrapResponse.json();
+        const fplPlayer = bootstrapData.elements.find((p: any) => p.id === player.fplId);
+        if (fplPlayer) {
+          playerTeamId = fplPlayer.team;
+        }
+      } catch (error) {
+        console.warn(`[FDR] Failed to fetch team ID for player ${player.name}:`, error);
+      }
+    }
+
     // Generate predictions for each week in horizon
     for (let week = 1; week <= horizonWeeks; week++) {
       const targetGW = args.currentGameweek + week;
@@ -120,42 +137,30 @@ export const predictMultiWeek = action({
         injuryAdjusted = true;
       }
 
-      // Apply fixture difficulty adjustment
-      // Get player's team ID from FPL API data
-      if (player.fplId) {
+      // Apply fixture difficulty adjustment using cached team ID
+      if (playerTeamId !== null) {
         try {
-          // Fetch team ID for this player
-          const bootstrapResponse = await fetch(
-            "https://fantasy.premierleague.com/api/bootstrap-static/"
+          // Get fixture difficulty for this gameweek
+          const fixtureDifficulty = await ctx.runQuery(
+            api.fixtures.getTeamFixtureDifficulty,
+            {
+              teamId: playerTeamId,
+              gameweek: targetGW,
+            }
           );
-          const bootstrapData = await bootstrapResponse.json();
-          const fplPlayer = bootstrapData.elements.find((p: any) => p.id === player.fplId);
 
-          if (fplPlayer) {
-            const teamId = fplPlayer.team;
-
-            // Get fixture difficulty for this gameweek
-            const fixtureDifficulty = await ctx.runQuery(
-              api.fixtures.getTeamFixtureDifficulty,
-              {
-                teamId: teamId,
-                gameweek: targetGW,
-              }
+          if (fixtureDifficulty && !fixtureDifficulty.postponed) {
+            const fdrAdjustment = calculateFdrAdjustment(
+              fixtureDifficulty.difficulty,
+              player.position
             );
 
-            if (fixtureDifficulty && !fixtureDifficulty.postponed) {
-              const fdrAdjustment = calculateFdrAdjustment(
-                fixtureDifficulty.difficulty,
-                player.position
-              );
-
-              prediction.xMinsStart *= fdrAdjustment;
-              prediction.p90 *= fdrAdjustment;
-            }
+            prediction.xMinsStart *= fdrAdjustment;
+            prediction.p90 *= fdrAdjustment;
           }
         } catch (error) {
-          // Silently skip FDR adjustment if fetch fails
-          console.warn(`[FDR] Failed to fetch for player ${player.name}:`, error);
+          // Silently skip FDR adjustment if query fails
+          console.warn(`[FDR] Failed to get fixture for GW${targetGW}:`, error);
         }
       }
 

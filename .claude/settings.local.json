@@ -3,7 +3,14 @@
     "allow": [
       "Bash(python:*)",
       "Bash(npx shadcn@latest add:*)",
-      "Bash(if exist nul del /f nul)"
+      "Bash(if exist nul del /f nul)",
+      "Bash(npx convex deploy)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(if exist \".next\" rmdir /s /q \".next\")",
+      "Bash(npx convex codegen:*)"
     ],
     "deny": [],
     "ask": []

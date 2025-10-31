@@ -52,6 +52,24 @@ crons.daily(
 );
 
 /**
+ * DAILY 02:30 UTC - Sync Fixtures with FDR
+ *
+ * Updates:
+ * - Fixture difficulty ratings (1-5)
+ * - Kickoff times (for postponements)
+ * - Match results (scores)
+ * - Fixture status (finished/postponed)
+ *
+ * Runs 30 minutes after player sync to ensure team data is fresh.
+ * Critical for FDR-adjusted predictions.
+ */
+crons.daily(
+  "daily-fixture-sync",
+  { hourUTC: 2, minuteUTC: 30 },
+  internal.scheduledActions.dailyFixtureSync
+);
+
+/**
  * SATURDAY 06:00 UTC - 14-Week Prediction Regeneration
  *
  * Generates xMins predictions for ALL 725 players for the NEXT 14 gameweeks.
