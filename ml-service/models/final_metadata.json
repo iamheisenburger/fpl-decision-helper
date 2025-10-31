@@ -1,0 +1,16 @@
+{
+  "version": "final_v1",
+  "features": 52,
+  "weights": {
+    "xgb": 0.4,
+    "lgb": 0.3,
+    "cat": 0.3
+  },
+  "accuracy_metrics": {
+    "accuracy_within_15min": 0.7002037697401936,
+    "accuracy_within_20min": 0.7636271013754458,
+    "accuracy_within_25min": 0.8051451859398879,
+    "accuracy_within_30min": 0.8331635252165054
+  },
+  "mae": 14.699148365863273
+}
