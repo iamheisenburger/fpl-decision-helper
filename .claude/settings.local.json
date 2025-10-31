@@ -23,7 +23,8 @@
       "Bash(curl:*)",
       "Bash(dir:*)",
       "Bash(del \"PHASE_5_ML_DEPLOYMENT_GUIDE.md\")",
-      "Bash(timeout /t 60)"
+      "Bash(timeout /t 60)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
