@@ -1,0 +1,12 @@
+{
+  "version": "stacked_v1",
+  "ensemble_type": "stacked_with_meta_learner",
+  "meta_learner": "Ridge",
+  "cv_folds": 5,
+  "accuracy_metrics": {
+    "accuracy_within_15min": 0.6976566479877738,
+    "accuracy_within_20min": 0.7631176770249618,
+    "accuracy_within_25min": 0.8036169128884361,
+    "accuracy_within_30min": 0.8336729495669893
+  }
+}

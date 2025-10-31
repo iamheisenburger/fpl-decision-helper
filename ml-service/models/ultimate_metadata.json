@@ -1,0 +1,14 @@
+{
+  "version": "ultimate_v1",
+  "techniques": [
+    "stacking",
+    "calibration",
+    "weighted_ensemble"
+  ],
+  "accuracy_metrics": {
+    "accuracy_within_15min": 0.7050433010697912,
+    "accuracy_within_20min": 0.7717778909831889,
+    "accuracy_within_25min": 0.8153336729495669,
+    "accuracy_within_30min": 0.8469179826795721
+  }
+}
