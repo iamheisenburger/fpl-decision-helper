@@ -1,0 +1,61 @@
+{
+  "playerId": "test_player_1",
+  "playerName": "Bukayo Saka",
+  "position": "MID",
+  "team": "Arsenal",
+  "price": 10.5,
+  "gameweek": 10,
+  "isHome": true,
+  "appearances": [
+    {
+      "gameweek": 9,
+      "season": "2025-26",
+      "started": true,
+      "minutes": 90,
+      "injExit": false,
+      "redCard": false,
+      "date": 1730320000000,
+      "homeAway": "home"
+    },
+    {
+      "gameweek": 8,
+      "season": "2025-26",
+      "started": true,
+      "minutes": 90,
+      "injExit": false,
+      "redCard": false,
+      "date": 1729715200000,
+      "homeAway": "away"
+    },
+    {
+      "gameweek": 7,
+      "season": "2025-26",
+      "started": true,
+      "minutes": 90,
+      "injExit": false,
+      "redCard": false,
+      "date": 1729110400000,
+      "homeAway": "home"
+    },
+    {
+      "gameweek": 6,
+      "season": "2025-26",
+      "started": true,
+      "minutes": 85,
+      "injExit": false,
+      "redCard": false,
+      "date": 1728505600000,
+      "homeAway": "away"
+    },
+    {
+      "gameweek": 5,
+      "season": "2025-26",
+      "started": true,
+      "minutes": 90,
+      "injExit": false,
+      "redCard": false,
+      "date": 1727900800000,
+      "homeAway": "home"
+    }
+  ]
+}

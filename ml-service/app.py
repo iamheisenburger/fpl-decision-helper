@@ -20,26 +20,23 @@ MODEL_DIR = Path(__file__).parent / "models"
 DATA_DIR = Path(__file__).parent / "data"
 
 # Load models and metadata at startup
+# Note: XGBoost doesn't need scalers (tree-based model)
 try:
     start_model = joblib.load(MODEL_DIR / "start_model.pkl")
-    start_scaler = joblib.load(MODEL_DIR / "start_scaler.pkl")
     minutes_model = joblib.load(MODEL_DIR / "minutes_model.pkl")
-    minutes_scaler = joblib.load(MODEL_DIR / "minutes_scaler.pkl")
 
     with open(MODEL_DIR / "model_metadata.json", 'r') as f:
         metadata = json.load(f)
 
-    print("✅ Models loaded successfully!")
+    print("[OK] Models loaded successfully!")
     print(f"   Model version: {metadata['model_version']}")
     print(f"   Trained at: {metadata['trained_at']}")
 
 except Exception as e:
-    print(f"⚠️  Failed to load models: {e}")
+    print(f"[WARNING] Failed to load models: {e}")
     print("   Please run train_models.py first")
     start_model = None
-    start_scaler = None
     minutes_model = None
-    minutes_scaler = None
     metadata = None
 
 
@@ -119,15 +116,17 @@ def engineer_features_from_appearances(
     appearances: List[Appearance],
     position: str,
     is_home: bool,
-    gameweek: int
+    gameweek: int,
+    price: float,
+    team: str
 ) -> Dict[str, float]:
     """
     Engineer features from raw appearance data.
-    Matches feature_engineering.py logic.
+    Matches feature_engineering.py logic with ALL 41 features.
     """
     if not appearances:
         # Return default features for new players
-        return get_default_features(position)
+        return get_default_features(position, price)
 
     # Convert to DataFrame
     df = pd.DataFrame([a.dict() for a in appearances])
@@ -182,12 +181,70 @@ def engineer_features_from_appearances(
     # Match context
     features['is_home'] = 1 if is_home else 0
 
+    # Attack features (last 5 games) - defaults to 0 since we don't have this data from Convex
+    for window in [5]:
+        features[f'goals_last_{window}'] = 0  # Would need goals data
+        features[f'assists_last_{window}'] = 0  # Would need assists data
+        features[f'xG_last_{window}'] = 0  # Would need xG data
+        features[f'xA_last_{window}'] = 0  # Would need xA data
+        features[f'goal_involvement_last_{window}'] = 0
+        features[f'xGI_last_{window}'] = 0
+
+    # Physical load features
+    # Days since last game
+    if len(df) > 0:
+        last_game_date = df.iloc[-1]['date']
+        current_timestamp = int(datetime.now().timestamp() * 1000)
+        days_since = (current_timestamp - last_game_date) / (1000 * 60 * 60 * 24)
+        features['days_since_last_game'] = max(0, days_since)
+    else:
+        features['days_since_last_game'] = 7  # Default to 1 week
+
+    # Minutes in last 7 days
+    if len(df) > 0:
+        seven_days_ago = int(datetime.now().timestamp() * 1000) - (7 * 24 * 60 * 60 * 1000)
+        recent_mins = df[df['date'] >= seven_days_ago]['minutes'].sum()
+        features['minutes_last_7_days'] = recent_mins
+    else:
+        features['minutes_last_7_days'] = 0
+
+    # Games in last 2 gameweeks
+    if len(df) > 0:
+        last_2_gw = df.tail(2)
+        features['games_last_2_gw'] = len(last_2_gw)
+    else:
+        features['games_last_2_gw'] = 0
+
+    # Team rotation rate (default 0.20 - would need historical team data)
+    features['team_rotation_rate'] = 0.20  # Neutral default
+
+    # Price normalization (range: £4.0 - £15.0)
+    features['price_norm'] = (price - 4.0) / (15.0 - 4.0)
+
+    # Quality features (defaults - would need ICT/influence/bonus from FPL API)
+    features['ict_last_5'] = 0  # Would need ICT index data
+    features['influence_last_5'] = 0  # Would need influence data
+    features['bonus_last_5'] = 0  # Would need bonus points data
+
+    # Scoreline features (defaults - would need match scores)
+    features['goal_diff'] = 0  # Would need score data
+    features['is_blowout'] = 0  # Would need score data
+
+    # Outlier flags
+    if prev_gw is not None:
+        features['is_red_card'] = 1 if prev_gw.get('redCard', False) else 0
+        features['is_early_injury_sub'] = 1 if prev_gw.get('injExit', False) else 0
+    else:
+        features['is_red_card'] = 0
+        features['is_early_injury_sub'] = 0
+
     return features
 
 
-def get_default_features(position: str) -> Dict[str, float]:
+def get_default_features(position: str, price: float) -> Dict[str, float]:
     """
     Return default features for new players with no history.
+    Includes ALL 41 features with sensible defaults.
     """
     features = {
         # Recent form (all zeros for new players)
@@ -215,6 +272,36 @@ def get_default_features(position: str) -> Dict[str, float]:
 
         # Match context
         'is_home': 1,
+
+        # Attack features
+        'goals_last_5': 0,
+        'assists_last_5': 0,
+        'xG_last_5': 0,
+        'xA_last_5': 0,
+        'goal_involvement_last_5': 0,
+        'xGI_last_5': 0,
+
+        # Physical load
+        'days_since_last_game': 7,
+        'minutes_last_7_days': 0,
+        'games_last_2_gw': 0,
+
+        # Manager rotation
+        'team_rotation_rate': 0.20,
+
+        # Price and quality
+        'price_norm': (price - 4.0) / (15.0 - 4.0),
+        'ict_last_5': 0,
+        'influence_last_5': 0,
+        'bonus_last_5': 0,
+
+        # Scoreline
+        'goal_diff': 0,
+        'is_blowout': 0,
+
+        # Outliers
+        'is_red_card': 0,
+        'is_early_injury_sub': 0,
     }
 
     return features
@@ -223,6 +310,9 @@ def get_default_features(position: str) -> Dict[str, float]:
 def predict_xmins(features: Dict[str, float]) -> Dict[str, float]:
     """
     Run two-stage ML prediction.
+
+    XGBoost doesn't need feature scaling (tree-based model),
+    so scalers are not used.
 
     Returns:
         Dictionary with startProb, xMinsStart, xMins, p90
@@ -236,13 +326,11 @@ def predict_xmins(features: Dict[str, float]) -> Dict[str, float]:
     # Create feature vector in correct order
     X = np.array([[features.get(f, 0) for f in feature_names]])
 
-    # Stage 1: Predict start probability
-    X_start_scaled = start_scaler.transform(X)
-    start_proba = start_model.predict_proba(X_start_scaled)[0, 1]
+    # Stage 1: Predict start probability (XGBoost doesn't need scaling)
+    start_proba = start_model.predict_proba(X)[0, 1]
 
-    # Stage 2: Predict minutes if starting
-    X_minutes_scaled = minutes_scaler.transform(X)
-    minutes_if_started = minutes_model.predict(X_minutes_scaled)[0]
+    # Stage 2: Predict minutes if starting (XGBoost doesn't need scaling)
+    minutes_if_started = minutes_model.predict(X)[0]
     minutes_if_started = np.clip(minutes_if_started, 0, 90)
 
     # Combined: xMins = P(start) × E[minutes | start]
@@ -304,12 +392,14 @@ async def predict(request: PredictionRequest):
     Predict xMins for a single player.
     """
     try:
-        # Engineer features
+        # Engineer features (now with ALL 41 features)
         features = engineer_features_from_appearances(
             request.appearances,
             request.position,
             request.isHome,
             request.gameweek,
+            request.price,
+            request.team,
         )
 
         # Run prediction

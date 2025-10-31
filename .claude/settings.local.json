@@ -18,7 +18,10 @@
       "Bash(py -3.11 fix_encoding.py:*)",
       "Bash(set PYTHONIOENCODING=utf-8:*)",
       "Bash(timeout /t 10)",
-      "Bash(py:*)"
+      "Bash(py:*)",
+      "Bash(timeout /t 3)",
+      "Bash(curl:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []
