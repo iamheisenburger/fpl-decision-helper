@@ -142,14 +142,52 @@ Quant firms predict market movements with:
 - **Contract situation** (leaving → less minutes, new signing → more)
 - **Transfer rumors** (if tracked)
 
+#### 7. Injury Intelligence (CRITICAL)
+**Problem:** FPL only shows injury availability percentages (0%, 25%, 50%, 75%) with no context.
+
+**What we need:**
+- **Injury type** (hamstring, knee, concussion, muscle strain, etc.)
+- **Injury severity** (minor knock vs long-term absence)
+- **Expected recovery timeline** (1 week, 3 weeks, 2 months)
+- **Historical recovery curves** (player X's hamstrings take 3 weeks on average)
+- **Cascading effects** (Player A injured → Player B gets more minutes)
+- **Return-from-injury ramp-up** (first game back = 60 min, second game = 75 min, third game = 90 min)
+
+**Example:**
+- Player at 75% availability with minor knock → 80% chance to start
+- Player at 75% availability with hamstring tear → 20% chance to start
+- FPL doesn't distinguish - we need to
+
+**Impact on other players:**
+- Injured starter → backup gets temporary boost in xMins
+- When starter returns → backup xMins decreases
+- Need to model both injured player AND affected teammates
+
+#### 8. Outlier Event Filtering (CRITICAL)
+**Problem:** Minutes per start can be misleading due to rare events that shouldn't influence predictions.
+
+**Events to filter/handle specially:**
+- **Early injury substitution** (player forced off after 15 min → don't penalize avg)
+- **Red card** (forced early sub → outlier, not tactical decision)
+- **Yellow card precaution** (subbed at 70 min to avoid second yellow → tactical, but shouldn't lower normal xMins)
+- **Blowout games** (5-0 lead → early subs for rest, not indicative of normal minutes)
+- **Dead rubber matches** (already qualified/relegated → heavy rotation)
+
+**Solution:**
+- Detect outlier appearances (red cards, injuries < 30 min)
+- Either exclude from training data OR add binary flags (is_outlier, red_card, injury_sub)
+- Don't let one freak event (e.g., 10 min red card) tank a player's predicted xMins
+- Weight recent "clean" appearances more than outlier events
+
 ---
 
 ## Model Architecture: Best-in-Class
 
-### Current Approach (Phase 5)
-- **Stage 1:** Logistic Regression (P(start))
-- **Stage 2:** Linear Regression (E[minutes | start])
-- **Simple, interpretable, but limited**
+### Current Approach (Phase 5 - COMPLETED ✅)
+- **Stage 1:** XGBoost Classifier (P(start)) - **85.23% accuracy**
+- **Stage 2:** XGBoost Regressor (E[minutes | start]) - **16.18 min MAE**
+- **Combined:** 67.15% accuracy within ±15 minutes
+- **Status:** Deployed baseline XGBoost, needs advanced features for 85-90% target
 
 ### Upgrade Path
 
