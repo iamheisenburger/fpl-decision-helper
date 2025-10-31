@@ -62,21 +62,6 @@ export const predictMultiWeek = action({
       );
     }
 
-    // Generate baseline prediction using heuristic engine
-    const baselinePrediction = await ctx.runQuery(
-      api.engines.xMinsHeuristic.predictWithHeuristic,
-      {
-        playerId: args.playerId,
-        gameweek: args.currentGameweek + 1, // Use next GW as baseline
-        recencyWindow: 8,
-      }
-    );
-
-    // If no baseline prediction, return empty array
-    if (!baselinePrediction) {
-      return [];
-    }
-
     // Fetch player's team ID once (avoid repeated API calls in loop)
     let playerTeamId: number | null = null;
     if (player.fplId) {
@@ -97,6 +82,23 @@ export const predictMultiWeek = action({
     // Generate predictions for each week in horizon
     for (let week = 1; week <= horizonWeeks; week++) {
       const targetGW = args.currentGameweek + week;
+
+      // Use hybrid predictor (ML for GW+1-4, blend for GW+5-8, heuristic for GW+9-14)
+      const baselinePrediction = await ctx.runAction(
+        api.engines.mlPredictor.predictHybrid,
+        {
+          playerId: args.playerId,
+          gameweek: targetGW,
+          currentGameweek: args.currentGameweek,
+          recencyWindow: 8,
+        }
+      );
+
+      // If no prediction, skip this week
+      if (!baselinePrediction) {
+        continue;
+      }
+
       let prediction = { ...baselinePrediction };
 
       // Apply confidence decay
@@ -248,13 +250,22 @@ export const generateAllPlayersMultiWeek = action({
 
             // Store each week's prediction
             for (const pred of predictions) {
+              // Determine source based on week distance
+              const weekDistance = pred.gameweek - args.currentGameweek;
+              let source: "model" | "override" | "heuristic" | "hybrid" = "heuristic";
+              if (weekDistance >= 1 && weekDistance <= 4) {
+                source = "model"; // ML
+              } else if (weekDistance >= 5 && weekDistance <= 8) {
+                source = "hybrid"; // Blend
+              }
+
               await ctx.runMutation(api.xmins.upsertXMins, {
                 playerId: player._id,
                 gameweek: pred.gameweek,
                 startProb: pred.startProb,
                 xMinsStart: pred.xMinsStart,
                 p90: pred.p90,
-                source: "heuristic",
+                source,
                 uncertaintyLo: pred.uncertaintyLo,
                 uncertaintyHi: pred.uncertaintyHi,
                 flags: {

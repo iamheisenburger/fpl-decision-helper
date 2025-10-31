@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Data files (large, regenerate from scripts)
+data/*.csv
+data/*.json
+
+# Model files (optional: commit these OR retrain on deploy)
+# Uncomment to exclude from git:
+# models/*.pkl
+# models/*.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log

@@ -114,4 +114,29 @@ crons.weekly(
   internal.scheduledActions.preDeadlineRefresh
 );
 
+/**
+ * TODO: ML MODEL RETRAINING (Future Enhancement)
+ *
+ * Ideal schedule: SATURDAY 04:00 UTC (before prediction generation at 06:00 UTC)
+ *
+ * Current approach:
+ * - ML models are trained locally and deployed to Render.com
+ * - Manual retraining required when performance degrades
+ *
+ * Future automation options:
+ * 1. GitHub Actions workflow (runs training script weekly, deploys updated models)
+ * 2. Separate worker service on Render.com (trains models, updates artifacts)
+ * 3. Convex action that triggers ML service to retrain (requires persistent storage)
+ *
+ * To manually retrain:
+ * 1. cd ml-service
+ * 2. python scripts/ingest_historical_data.py (fetch latest data)
+ * 3. python scripts/feature_engineering.py (engineer features)
+ * 4. python scripts/train_models.py (train models)
+ * 5. git add models/*.pkl && git commit -m "Update trained models" && git push
+ * 6. Render.com will auto-redeploy with new models
+ *
+ * Retraining frequency: Weekly (or when accuracy drops below 80%)
+ */
+
 export default crons;

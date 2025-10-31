@@ -86,7 +86,7 @@ export const upsertXMins = mutation({
     startProb: v.number(),
     xMinsStart: v.number(),
     p90: v.number(),
-    source: v.union(v.literal("model"), v.literal("override"), v.literal("heuristic")),
+    source: v.union(v.literal("model"), v.literal("override"), v.literal("heuristic"), v.literal("hybrid")),
     uncertaintyLo: v.optional(v.number()),
     uncertaintyHi: v.optional(v.number()),
     flags: v.optional(
@@ -151,7 +151,7 @@ export const bulkInsertXMins = mutation({
         startProb: v.number(),
         xMinsStart: v.number(),
         p90: v.number(),
-        source: v.union(v.literal("model"), v.literal("override"), v.literal("heuristic")),
+        source: v.union(v.literal("model"), v.literal("override"), v.literal("heuristic"), v.literal("hybrid")),
         uncertaintyLo: v.optional(v.number()),
         uncertaintyHi: v.optional(v.number()),
         flags: v.optional(

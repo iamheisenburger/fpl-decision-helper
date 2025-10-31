@@ -153,7 +153,8 @@ export default defineSchema({
     source: v.union(
       v.literal("model"),
       v.literal("override"),
-      v.literal("heuristic")
+      v.literal("heuristic"),
+      v.literal("hybrid")
     ),
     uncertaintyLo: v.optional(v.number()), // lower bound of confidence interval
     uncertaintyHi: v.optional(v.number()), // upper bound of confidence interval

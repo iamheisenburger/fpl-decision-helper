@@ -1,0 +1,24 @@
+# Render.com deployment configuration
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: fpl-ml-service
+    env: python
+    region: oregon  # Free tier available
+    plan: free  # Start with free tier, upgrade if needed
+
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app:app --host 0.0.0.0 --port $PORT"
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
+
+      - key: MODEL_VERSION
+        value: v1.0
+
+    # Auto-deploy on push to main branch
+    autoDeploy: true

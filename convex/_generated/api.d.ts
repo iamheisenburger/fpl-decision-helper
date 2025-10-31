@@ -16,6 +16,7 @@ import type * as depth from "../depth.js";
 import type * as depthCharts from "../depthCharts.js";
 import type * as engines_calculations from "../engines/calculations.js";
 import type * as engines_captaincy from "../engines/captaincy.js";
+import type * as engines_mlPredictor from "../engines/mlPredictor.js";
 import type * as engines_multiWeekPredictor from "../engines/multiWeekPredictor.js";
 import type * as engines_xMinsHeuristic from "../engines/xMinsHeuristic.js";
 import type * as engines_xiOptimizer from "../engines/xiOptimizer.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   depthCharts: typeof depthCharts;
   "engines/calculations": typeof engines_calculations;
   "engines/captaincy": typeof engines_captaincy;
+  "engines/mlPredictor": typeof engines_mlPredictor;
   "engines/multiWeekPredictor": typeof engines_multiWeekPredictor;
   "engines/xMinsHeuristic": typeof engines_xMinsHeuristic;
   "engines/xiOptimizer": typeof engines_xiOptimizer;
