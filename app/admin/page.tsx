@@ -69,10 +69,12 @@ export default function AdminPage() {
     setHistoryStatus("Syncing historical appearances for all players...\nThis will take 20-30 minutes (725 players × ~9 games each)");
     try {
       const result = await syncHistory({});
-      if (result.success) {
-        setHistoryStatus(`✅ Synced ${result.synced} players, ${result.totalAppearances} appearances`);
-      } else {
+      if (result.success && 'successCount' in result) {
+        setHistoryStatus(`✅ Synced ${result.successCount} players (${result.failedCount} failed)`);
+      } else if (!result.success && 'error' in result) {
         setHistoryStatus(`❌ Error: ${result.error}`);
+      } else {
+        setHistoryStatus(`❌ Unknown error occurred`);
       }
     } catch (error) {
       setHistoryStatus(`❌ Error: ${error}`);
