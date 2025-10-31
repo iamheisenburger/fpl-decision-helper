@@ -2,9 +2,9 @@
   "version": "calibrated_v1",
   "calibration": "platt_scaling + isotonic_regression",
   "accuracy_metrics": {
-    "accuracy_within_15min": 0.7292409577177789,
-    "accuracy_within_20min": 0.7855323484462557,
-    "accuracy_within_25min": 0.8219561895058584,
-    "accuracy_within_30min": 0.8502292409577178
+    "accuracy_within_15min": 0.8657666836474783,
+    "accuracy_within_20min": 0.9001528273051452,
+    "accuracy_within_25min": 0.9289353031074885,
+    "accuracy_within_30min": 0.9406520631686195
   }
 }

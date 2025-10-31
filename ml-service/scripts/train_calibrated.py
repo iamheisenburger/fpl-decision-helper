@@ -147,7 +147,7 @@ def evaluate_calibrated(splits, start_model, minutes_model, iso_reg):
     # Calculate MAE
     mae = mean_absolute_error(actual_minutes, xmins_predicted)
 
-    # Calculate accuracy at thresholds
+    # Calculate accuracy at thresholds - PRIMARY: ±15 MIN (NORTH_STAR)
     thresholds = [15, 20, 25, 30]
     accuracy_metrics = {}
 
@@ -155,23 +155,35 @@ def evaluate_calibrated(splits, start_model, minutes_model, iso_reg):
     print(f"     MAE: {mae:.2f} minutes")
     print(f"     Avg predicted xMins: {xmins_predicted.mean():.1f}")
     print(f"     Avg actual minutes: {actual_minutes.mean():.1f}")
-    print(f"\n  [ACCURACY] Threshold Performance:")
+    print(f"\n  [ACCURACY] Threshold Performance (PRIMARY: +/-15 min):")
 
     for threshold in thresholds:
         within_tolerance = np.abs(actual_minutes - xmins_predicted) <= threshold
         accuracy = within_tolerance.mean()
         accuracy_metrics[f'accuracy_within_{threshold}min'] = accuracy
 
-        if accuracy >= 0.90 and threshold <= 25:
-            status = "*** TARGET HIT ***"
+        # NORTH_STAR target: 85-90% at ±15 min
+        if threshold == 15:
+            if accuracy >= 0.85:
+                status = "*** NORTH_STAR ACHIEVED (85%+) ***"
+            else:
+                gap = 0.85 - accuracy
+                status = f"[Gap to NORTH_STAR: {gap:.1%}]"
+            prefix = ">>> "
+        elif accuracy >= 0.90:
+            status = "[EXCELLENT]"
+            prefix = "    "
         elif accuracy >= 0.85:
             status = "[EXCELLENT]"
+            prefix = "    "
         elif accuracy >= 0.80:
             status = "[GOOD]"
+            prefix = "    "
         else:
             status = "[PROGRESS]"
+            prefix = "    "
 
-        print(f"     +/-{threshold} min: {accuracy:.2%} {status}")
+        print(f"{prefix}+/-{threshold} min: {accuracy:.2%} {status}")
 
     return accuracy_metrics
 
