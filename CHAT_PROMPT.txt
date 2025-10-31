@@ -1,0 +1,86 @@
+FPL Decision Helper - New Session Context
+================================================
+
+READ THESE FIRST:
+1. @NORTH_STAR.md - Vision and accuracy goals (90-95% target)
+2. @HANDOFF.md - Complete technical state and priorities
+
+CRITICAL RULES - NO MISINFORMATION:
+- Current season: 2025-26 (NOT 2024-25)
+- Burnley, Leeds, Sunderland ARE in Premier League
+- Zinchenko plays for Nottingham Forest (NOT Arsenal)
+- Madueke plays for Arsenal (NOT Chelsea)
+- NEVER assume player clubs/teams - verify with FPL API
+
+PROJECT STATUS:
+- System: 75% complete
+- ML Models: 85% accuracy at ±30 min (good, but need 90-95%)
+- Deployment: Frontend+Backend live, ML service local only
+- Training Data: 20,742 appearances (2024-25 + 2025-26)
+- Features: 41 total (form, load, rotation, price, quality, etc.)
+
+IMMEDIATE PRIORITIES:
+1. Push ML accuracy from 85% → 90-95%
+   - Add real ICT/influence/bonus data (currently defaulted to 0)
+   - Fix "expensive = nailed" logic (oversimplified - Pep roulette exists!)
+   - Add manager-specific rotation profiles
+   - Try LightGBM/CatBoost ensemble
+   - Hyperparameter tuning
+
+2. Deploy ML service to production
+   - Choose: Render.com (recommended), Railway, AWS Lambda, GCP
+   - Set Convex env var: ML_SERVICE_URL
+
+3. Integrate Convex → ML service
+   - Update mlPredictor.ts to call HTTP endpoint
+   - Implement fallback: ML → heuristics → cached
+
+ML MODEL BOTTLENECKS:
+- ICT/influence/bonus defaulted to 0 (need real data from FPL API)
+- Price logic too simple (Pep rotates expensive players!)
+- No manager profiles (Pep ≠ Arteta ≠ Howe)
+- Missing European fixture congestion
+- No squad depth intelligence
+
+QUICK WINS TO TRY:
+- LightGBM or CatBoost (often beats XGBoost)
+- SHAP analysis for feature importance
+- Stratified cross-validation
+- Opponent strength features (top 6 vs bottom 14)
+- Substitution pattern features (subbed at 60/70/80 min)
+
+GIT STATUS:
+- Branch: main
+- Latest: faf9545 (ML service production-ready)
+- Clean working tree
+- Models NOT in git (1.5MB, gitignored)
+
+TECH STACK:
+- Frontend: Next.js 15 + TypeScript + Tailwind (Vercel)
+- Backend: Convex serverless (deployed)
+- ML: FastAPI + XGBoost Python 3.11 (local only)
+- Database: Convex (7 tables, 725 players)
+
+KEY FILES:
+- convex/engines/heuristics.ts - Baseline (70-75% accuracy)
+- ml-service/app.py - FastAPI prediction endpoint
+- ml-service/scripts/train_models.py - XGBoost training
+- convex/schema.ts - Database schema
+
+USEFUL COMMANDS:
+- Start ML: cd ml-service && py -3.11 -m uvicorn app:app --port 8000
+- Retrain: cd ml-service && py -3.11 scripts/train_models.py
+- Deploy Convex: npx convex deploy
+- Deploy Vercel: git push origin main
+
+LINKS:
+- Production: https://fpl-decision-helper.vercel.app
+- Convex: https://dashboard.convex.dev/t/iamheisenburger/fpl-decision-helper-775/zany-tern-775
+- GitHub: https://github.com/iamheisenburger/fpl-decision-helper
+- ML Local: http://localhost:8000
+
+REMEMBER:
+- FPL API is source of truth - verify before assuming
+- Target is 90-95% accuracy (not 85-90%)
+- Quality > quantity (2 seasons, not 5)
+- Test rigorously - no misinformation allowed

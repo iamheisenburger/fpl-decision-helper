@@ -21,7 +21,8 @@
       "Bash(py:*)",
       "Bash(timeout /t 3)",
       "Bash(curl:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(del \"PHASE_5_ML_DEPLOYMENT_GUIDE.md\")"
     ],
     "deny": [],
     "ask": []
