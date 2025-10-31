@@ -72,8 +72,8 @@ export const syncFixtures = action({
           awayTeamDifficulty: fixture.team_a_difficulty,
           finished: fixture.finished,
           postponed: fixture.finished_provisional,
-          homeScore: fixture.team_h_score,
-          awayScore: fixture.team_a_score,
+          homeScore: fixture.team_h_score !== null ? fixture.team_h_score : undefined,
+          awayScore: fixture.team_a_score !== null ? fixture.team_a_score : undefined,
         };
 
         // Check if fixture already exists
