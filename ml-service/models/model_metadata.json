@@ -1,0 +1,89 @@
+{
+  "model_version": "v1.0",
+  "model_type": "xgboost_classifier_regressor",
+  "trained_at": "2025-10-31T16:18:31.901255",
+  "feature_config": {
+    "start_features": [
+      "pos_GK",
+      "pos_DEF",
+      "pos_MID",
+      "pos_FWD",
+      "avg_minutes_last_3",
+      "start_rate_last_3",
+      "consistency_last_3",
+      "trend_last_3",
+      "avg_minutes_last_5",
+      "start_rate_last_5",
+      "consistency_last_5",
+      "trend_last_5",
+      "avg_minutes_last_8",
+      "start_rate_last_8",
+      "consistency_last_8",
+      "trend_last_8",
+      "role_lock",
+      "consecutive_85plus",
+      "prev_gw_minutes",
+      "prev_gw_started",
+      "gameweek_norm",
+      "month_norm",
+      "is_home"
+    ],
+    "minutes_features": [
+      "pos_GK",
+      "pos_DEF",
+      "pos_MID",
+      "pos_FWD",
+      "avg_minutes_last_3",
+      "start_rate_last_3",
+      "consistency_last_3",
+      "trend_last_3",
+      "avg_minutes_last_5",
+      "start_rate_last_5",
+      "consistency_last_5",
+      "trend_last_5",
+      "avg_minutes_last_8",
+      "start_rate_last_8",
+      "consistency_last_8",
+      "trend_last_8",
+      "role_lock",
+      "consecutive_85plus",
+      "prev_gw_minutes",
+      "prev_gw_started",
+      "gameweek_norm",
+      "month_norm",
+      "is_home"
+    ],
+    "targets": {
+      "start": "target_started",
+      "minutes": "target_minutes_if_started"
+    }
+  },
+  "metrics": {
+    "start_model": {
+      "train_accuracy": 0.9085156391249322,
+      "test_accuracy": 0.8522535550735116,
+      "roc_auc": 0.9257187772410616,
+      "precision": 0.7907233572611817,
+      "recall": 0.8595438175270108,
+      "f1_score": 0.823698590739143,
+      "cv_mean": 0.849334616245879,
+      "cv_std": 0.00687191283971072
+    },
+    "minutes_model": {
+      "train_mae": 11.62567266045596,
+      "test_mae": 16.181494730002598,
+      "train_rmse": 16.608502565860736,
+      "test_rmse": 22.76690867250838,
+      "train_r2": 0.678490819087197,
+      "test_r2": 0.3978015272140304,
+      "cv_mae_mean": 16.129463408106055,
+      "cv_mae_std": 0.2198839708168658
+    },
+    "combined": {
+      "combined_mae": 16.810300827026367,
+      "accuracy_within_15min": 0.6714871053265847,
+      "avg_predicted_xmins": 29.568462371826172
+    }
+  },
+  "xgboost_version": "3.1.1"
+}

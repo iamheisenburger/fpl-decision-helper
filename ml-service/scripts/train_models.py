@@ -1,8 +1,8 @@
 """
 Model Training for FPL Minutes Prediction
-Two-stage approach:
-1. Logistic Regression: Predict P(start)
-2. Linear Regression: Predict E[minutes | start]
+Two-stage approach with XGBoost:
+1. XGBClassifier: Predict P(start)
+2. XGBRegressor: Predict E[minutes | start]
 
 Target accuracy: 85-90%
 """
@@ -14,7 +14,7 @@ import json
 import joblib
 from typing import Dict, Tuple
 
-from sklearn.linear_model import LogisticRegression, Ridge
+import xgboost as xgb
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import (
     accuracy_score,
@@ -46,7 +46,7 @@ def load_training_data() -> Tuple[pd.DataFrame, Dict]:
         )
 
     df = pd.read_csv(data_path)
-    print(f"✅ Loaded {len(df):,} training samples")
+    print(f"[OK] Loaded {len(df):,} training samples")
 
     with open(config_path, 'r') as f:
         config = json.load(f)
@@ -69,7 +69,7 @@ def prepare_train_test_split(
     Returns:
         Dictionary with train/test splits for both stages
     """
-    print("\n📊 Preparing train/test splits...")
+    print("\n[STATS] Preparing train/test splits...")
 
     # Stage 1: Start prediction (all data)
     X_start = df[config['start_features']]
@@ -115,34 +115,37 @@ def prepare_train_test_split(
     }
 
 
-def train_start_model(splits: Dict) -> Tuple[LogisticRegression, StandardScaler, Dict]:
+def train_start_model(splits: Dict) -> Tuple:
     """
-    Train Stage 1: Logistic Regression for P(start).
+    Train Stage 1: XGBoost Classifier for P(start).
 
     Returns:
-        Trained model, scaler, and metrics
+        Trained model, None (no scaler needed), and metrics
     """
-    print("\n🤖 Training Stage 1: Start Probability Model...")
+    print("\n[MODEL] Training Stage 1: Start Probability Model (XGBoost)...")
 
-    # Standardize features
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(splits['start']['X_train'])
-    X_test_scaled = scaler.transform(splits['start']['X_test'])
+    # Calculate scale_pos_weight to handle class imbalance
+    n_negative = (splits['start']['y_train'] == 0).sum()
+    n_positive = (splits['start']['y_train'] == 1).sum()
+    scale_pos_weight = n_negative / n_positive
 
-    # Train Logistic Regression
-    model = LogisticRegression(
-        max_iter=1000,
+    # Train XGBoost Classifier
+    model = xgb.XGBClassifier(
+        max_depth=6,
+        learning_rate=0.1,
+        n_estimators=200,
+        scale_pos_weight=scale_pos_weight,  # Handle class imbalance
         random_state=42,
-        class_weight='balanced',  # Handle class imbalance
-        C=1.0,  # Regularization strength
+        eval_metric='logloss',
+        use_label_encoder=False,
     )
 
-    model.fit(X_train_scaled, splits['start']['y_train'])
+    model.fit(splits['start']['X_train'], splits['start']['y_train'])
 
     # Predictions
-    y_pred_train = model.predict(X_train_scaled)
-    y_pred_test = model.predict(X_test_scaled)
-    y_pred_proba_test = model.predict_proba(X_test_scaled)[:, 1]
+    y_pred_train = model.predict(splits['start']['X_train'])
+    y_pred_test = model.predict(splits['start']['X_test'])
+    y_pred_proba_test = model.predict_proba(splits['start']['X_test'])[:, 1]
 
     # Evaluate
     train_acc = accuracy_score(splits['start']['y_train'], y_pred_train)
@@ -157,7 +160,7 @@ def train_start_model(splits: Dict) -> Tuple[LogisticRegression, StandardScaler,
 
     # Cross-validation
     cv_scores = cross_val_score(
-        model, X_train_scaled, splits['start']['y_train'],
+        model, splits['start']['X_train'], splits['start']['y_train'],
         cv=5, scoring='accuracy'
     )
 
@@ -172,7 +175,7 @@ def train_start_model(splits: Dict) -> Tuple[LogisticRegression, StandardScaler,
         'cv_std': cv_scores.std(),
     }
 
-    print(f"  ✅ Model trained!")
+    print(f"  [OK] Model trained!")
     print(f"     Train Accuracy: {train_acc:.2%}")
     print(f"     Test Accuracy:  {test_acc:.2%}")
     print(f"     ROC AUC:        {auc_score:.3f}")
@@ -184,41 +187,39 @@ def train_start_model(splits: Dict) -> Tuple[LogisticRegression, StandardScaler,
     # Feature importance (top 10)
     feature_importance = pd.DataFrame({
         'feature': splits['start']['X_train'].columns,
-        'coefficient': model.coef_[0]
-    }).sort_values('coefficient', key=abs, ascending=False)
+        'importance': model.feature_importances_
+    }).sort_values('importance', ascending=False)
 
-    print(f"\n  📊 Top 10 Most Important Features:")
+    print(f"\n  [STATS] Top 10 Most Important Features:")
     for idx, row in feature_importance.head(10).iterrows():
-        print(f"     {row['feature']}: {row['coefficient']:.4f}")
+        print(f"     {row['feature']}: {row['importance']:.4f}")
 
-    return model, scaler, metrics
+    return model, None, metrics
 
 
-def train_minutes_model(splits: Dict) -> Tuple[Ridge, StandardScaler, Dict]:
+def train_minutes_model(splits: Dict) -> Tuple:
     """
-    Train Stage 2: Ridge Regression for E[minutes | start].
+    Train Stage 2: XGBoost Regressor for E[minutes | start].
 
     Returns:
-        Trained model, scaler, and metrics
+        Trained model, None (no scaler needed), and metrics
     """
-    print("\n🤖 Training Stage 2: Minutes Prediction Model...")
+    print("\n[MODEL] Training Stage 2: Minutes Prediction Model (XGBoost)...")
 
-    # Standardize features
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(splits['minutes']['X_train'])
-    X_test_scaled = scaler.transform(splits['minutes']['X_test'])
-
-    # Train Ridge Regression (L2 regularization to prevent overfitting)
-    model = Ridge(
-        alpha=1.0,  # Regularization strength
+    # Train XGBoost Regressor
+    model = xgb.XGBRegressor(
+        max_depth=5,
+        learning_rate=0.1,
+        n_estimators=200,
         random_state=42,
+        objective='reg:squarederror',
     )
 
-    model.fit(X_train_scaled, splits['minutes']['y_train'])
+    model.fit(splits['minutes']['X_train'], splits['minutes']['y_train'])
 
     # Predictions
-    y_pred_train = model.predict(X_train_scaled)
-    y_pred_test = model.predict(X_test_scaled)
+    y_pred_train = model.predict(splits['minutes']['X_train'])
+    y_pred_test = model.predict(splits['minutes']['X_test'])
 
     # Clip predictions to valid range [0, 90]
     y_pred_test_clipped = np.clip(y_pred_test, 0, 90)
@@ -235,7 +236,7 @@ def train_minutes_model(splits: Dict) -> Tuple[Ridge, StandardScaler, Dict]:
 
     # Cross-validation
     cv_scores = cross_val_score(
-        model, X_train_scaled, splits['minutes']['y_train'],
+        model, splits['minutes']['X_train'], splits['minutes']['y_train'],
         cv=5, scoring='neg_mean_absolute_error'
     )
 
@@ -250,7 +251,7 @@ def train_minutes_model(splits: Dict) -> Tuple[Ridge, StandardScaler, Dict]:
         'cv_mae_std': cv_scores.std(),
     }
 
-    print(f"  ✅ Model trained!")
+    print(f"  [OK] Model trained!")
     print(f"     Train MAE:  {train_mae:.2f} minutes")
     print(f"     Test MAE:   {test_mae:.2f} minutes")
     print(f"     Train RMSE: {train_rmse:.2f} minutes")
@@ -262,14 +263,14 @@ def train_minutes_model(splits: Dict) -> Tuple[Ridge, StandardScaler, Dict]:
     # Feature importance (top 10)
     feature_importance = pd.DataFrame({
         'feature': splits['minutes']['X_train'].columns,
-        'coefficient': model.coef_
-    }).sort_values('coefficient', key=abs, ascending=False)
+        'importance': model.feature_importances_
+    }).sort_values('importance', ascending=False)
 
-    print(f"\n  📊 Top 10 Most Important Features:")
+    print(f"\n  [STATS] Top 10 Most Important Features:")
     for idx, row in feature_importance.head(10).iterrows():
-        print(f"     {row['feature']}: {row['coefficient']:.4f}")
+        print(f"     {row['feature']}: {row['importance']:.4f}")
 
-    return model, scaler, metrics
+    return model, None, metrics
 
 
 def calculate_combined_accuracy(splits: Dict, start_model, start_scaler, minutes_model, minutes_scaler) -> Dict:
@@ -278,19 +279,17 @@ def calculate_combined_accuracy(splits: Dict, start_model, start_scaler, minutes
 
     This is the metric that matters for FPL decision-making.
     """
-    print("\n📊 Calculating Combined xMins Accuracy...")
+    print("\n[STATS] Calculating Combined xMins Accuracy...")
 
     # Get test data
     X_start_test = splits['start']['X_test']
     y_start_test = splits['start']['y_test']
 
     # Stage 1: Predict start probability
-    X_start_scaled = start_scaler.transform(X_start_test)
-    start_proba = start_model.predict_proba(X_start_scaled)[:, 1]
+    start_proba = start_model.predict_proba(X_start_test)[:, 1]
 
     # Stage 2: Predict minutes for all (as if they started)
-    X_minutes_scaled = minutes_scaler.transform(X_start_test)
-    predicted_minutes = minutes_model.predict(X_minutes_scaled)
+    predicted_minutes = minutes_model.predict(X_start_test)
     predicted_minutes = np.clip(predicted_minutes, 0, 90)
 
     # Combined: xMins = P(start) × E[minutes | start]
@@ -329,7 +328,7 @@ def calculate_combined_accuracy(splits: Dict, start_model, start_scaler, minutes
         'avg_predicted_xmins': xmins_predicted.mean(),
     }
 
-    print(f"  ✅ Combined Model Performance:")
+    print(f"  [OK] Combined Model Performance:")
     print(f"     MAE: {mae:.2f} minutes")
     print(f"     Accuracy within ±15 min: {accuracy:.2%}")
     print(f"     Avg predicted xMins: {xmins_predicted.mean():.1f}")
@@ -341,7 +340,7 @@ def save_models(start_model, start_scaler, minutes_model, minutes_scaler, config
     """
     Save trained models and metadata.
     """
-    print("\n💾 Saving models...")
+    print("\n[SAVED] Saving models...")
 
     # Save models
     joblib.dump(start_model, MODEL_DIR / "start_model.pkl")
@@ -349,22 +348,36 @@ def save_models(start_model, start_scaler, minutes_model, minutes_scaler, config
     joblib.dump(minutes_model, MODEL_DIR / "minutes_model.pkl")
     joblib.dump(minutes_scaler, MODEL_DIR / "minutes_scaler.pkl")
 
-    print(f"  ✅ Saved models to {MODEL_DIR}")
+    print(f"  [OK] Saved models to {MODEL_DIR}")
+
+    # Convert numpy types to Python types for JSON serialization
+    def convert_to_python_types(obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, dict):
+            return {key: convert_to_python_types(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_to_python_types(item) for item in obj]
+        return obj
 
     # Save metadata
     metadata = {
         'model_version': 'v1.0',
-        'model_type': 'logistic_ridge',
+        'model_type': 'xgboost_classifier_regressor',
         'trained_at': pd.Timestamp.now().isoformat(),
         'feature_config': config,
-        'metrics': all_metrics,
-        'sklearn_version': '1.3.0',  # Update based on installed version
+        'metrics': convert_to_python_types(all_metrics),
+        'xgboost_version': xgb.__version__,
     }
 
     with open(MODEL_DIR / "model_metadata.json", 'w') as f:
         json.dump(metadata, f, indent=2)
 
-    print(f"  ✅ Saved metadata to {MODEL_DIR / 'model_metadata.json'}")
+    print(f"  [OK] Saved metadata to {MODEL_DIR / 'model_metadata.json'}")
 
 
 def main():
@@ -403,23 +416,23 @@ def main():
         # Save models
         save_models(start_model, start_scaler, minutes_model, minutes_scaler, config, all_metrics)
 
-        print("\n✅ Model training complete!")
-        print(f"\n📊 Final Performance Summary:")
+        print("\n[OK] Model training complete!")
+        print(f"\n[STATS] Final Performance Summary:")
         print(f"   Stage 1 (Start): {start_metrics['test_accuracy']:.2%} accuracy")
         print(f"   Stage 2 (Minutes): {minutes_metrics['test_mae']:.1f} min MAE")
         print(f"   Combined: {combined_metrics['accuracy_within_15min']:.2%} within ±15 min")
 
         target_accuracy = 0.85
         if combined_metrics['accuracy_within_15min'] >= target_accuracy:
-            print(f"\n🎉 SUCCESS! Achieved {combined_metrics['accuracy_within_15min']:.2%} accuracy (target: {target_accuracy:.0%})")
+            print(f"\n[SUCCESS] SUCCESS! Achieved {combined_metrics['accuracy_within_15min']:.2%} accuracy (target: {target_accuracy:.0%})")
         else:
-            print(f"\n⚠️  Accuracy {combined_metrics['accuracy_within_15min']:.2%} is below target ({target_accuracy:.0%})")
+            print(f"\n[WARNING]  Accuracy {combined_metrics['accuracy_within_15min']:.2%} is below target ({target_accuracy:.0%})")
             print(f"   Consider upgrading to XGBoost or adding more features")
 
         print(f"\n   Next step: Build FastAPI service (api_service.py)")
 
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n[ERROR] Error: {e}")
         raise
 
 

@@ -36,7 +36,7 @@ def fetch_fpl_current_season() -> pd.DataFrame:
         DataFrame with columns: player_id, player_name, gameweek, season, started,
                                minutes, opponent, home_away, position, team, etc.
     """
-    print("Fetching current season (2025-26) from FPL API...")
+    print("Fetching current season (2025-26) from FPL API...", flush=True)
 
     # Get bootstrap data for player/team mapping
     bootstrap = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/").json()
@@ -55,7 +55,9 @@ def fetch_fpl_current_season() -> pd.DataFrame:
         team = team_map.get(player['team'], 'Unknown')
         price = player['now_cost'] / 10
 
-        print(f"  [{idx}/{total_players}] Fetching {player_name}...")
+        # Encode player name to avoid Windows console encoding issues
+        safe_name = player_name.encode('ascii', 'replace').decode('ascii')
+        print(f"  [{idx}/{total_players}] Fetching {safe_name}...", flush=True)
 
         try:
             # Fetch player history
@@ -64,7 +66,7 @@ def fetch_fpl_current_season() -> pd.DataFrame:
             )
 
             if response.status_code != 200:
-                print(f"    ⚠️  Failed (HTTP {response.status_code})")
+                print(f"    [WARNING]  Failed (HTTP {response.status_code})")
                 continue
 
             data = response.json()
@@ -95,11 +97,11 @@ def fetch_fpl_current_season() -> pd.DataFrame:
             time.sleep(0.3)
 
         except Exception as e:
-            print(f"    ⚠️  Error: {e}")
+            print(f"    [WARNING]  Error: {e}")
             continue
 
     df = pd.DataFrame(all_data)
-    print(f"✅ Fetched {len(df)} appearances for 2025-26 season")
+    print(f"[OK] Fetched {len(df)} appearances for 2025-26 season")
     return df
 
 
@@ -113,16 +115,16 @@ def fetch_historical_season(season: str) -> pd.DataFrame:
     Returns:
         DataFrame with standardized columns
     """
-    print(f"\nFetching {season} from GitHub archive...")
+    print(f"\nFetching {season} from GitHub archive...", flush=True)
 
     # Fetch players data
     players_url = f"{GITHUB_BASE}/{season}/players_raw.csv"
 
     try:
         players_df = pd.read_csv(players_url)
-        print(f"  ✅ Downloaded players_raw.csv ({len(players_df)} players)")
+        print(f"  [OK] Downloaded players_raw.csv ({len(players_df)} players)", flush=True)
     except Exception as e:
-        print(f"  ⚠️  Failed to download: {e}")
+        print(f"  [WARNING]  Failed to download: {e}", flush=True)
         return pd.DataFrame()
 
     # Process gameweek data for each player
@@ -130,14 +132,15 @@ def fetch_historical_season(season: str) -> pd.DataFrame:
 
     # Get unique player IDs from the players file
     # Try to find player directories (each player has a folder with gw.csv)
-    print(f"  Processing individual player gameweek data...")
+    print(f"  Processing individual player gameweek data...", flush=True)
 
     # Alternative: Download merged_gw.csv which has all gameweeks for all players
     merged_url = f"{GITHUB_BASE}/{season}/gws/merged_gw.csv"
 
     try:
-        gw_df = pd.read_csv(merged_url)
-        print(f"  ✅ Downloaded merged_gw.csv ({len(gw_df)} appearances)")
+        # Skip bad lines in CSV (some rows have corrupted data)
+        gw_df = pd.read_csv(merged_url, on_bad_lines='skip', engine='python')
+        print(f"  [OK] Downloaded merged_gw.csv ({len(gw_df)} appearances)", flush=True)
 
         # Standardize column names
         gw_df['season'] = season
@@ -161,7 +164,7 @@ def fetch_historical_season(season: str) -> pd.DataFrame:
         return gw_df
 
     except Exception as e:
-        print(f"  ⚠️  Failed to download merged_gw.csv: {e}")
+        print(f"  [WARNING]  Failed to download merged_gw.csv: {e}", flush=True)
         return pd.DataFrame()
 
 
@@ -198,11 +201,11 @@ def add_position_and_team(df: pd.DataFrame, season: str) -> pd.DataFrame:
 
         df = df.merge(player_info, on='fpl_id', how='left')
 
-        print(f"  ✅ Enriched with position/team data")
+        print(f"  [OK] Enriched with position/team data")
         return df
 
     except Exception as e:
-        print(f"  ⚠️  Failed to enrich: {e}")
+        print(f"  [WARNING]  Failed to enrich: {e}")
         return df
 
 
@@ -220,13 +223,13 @@ def create_training_dataset() -> pd.DataFrame:
     if not df_2024.empty:
         df_2024 = add_position_and_team(df_2024, "2024-25")
         all_seasons.append(df_2024)
-        print(f"  ✅ 2024-25: {len(df_2024)} appearances")
+        print(f"  [OK] 2024-25: {len(df_2024)} appearances")
 
     # Fetch current season (2025-26) from live API
     current_df = fetch_fpl_current_season()
     if not current_df.empty:
         all_seasons.append(current_df)
-        print(f"  ✅ 2025-26: {len(current_df)} appearances")
+        print(f"  [OK] 2025-26: {len(current_df)} appearances")
 
     # Combine all seasons
     if not all_seasons:
@@ -237,7 +240,7 @@ def create_training_dataset() -> pd.DataFrame:
     # Sort by player and date
     combined_df = combined_df.sort_values(['fpl_id', 'season', 'gameweek'])
 
-    print(f"\n✅ Combined dataset: {len(combined_df)} total appearances")
+    print(f"\n[OK] Combined dataset: {len(combined_df)} total appearances")
     print(f"   Players: {combined_df['fpl_id'].nunique()}")
     print(f"   Seasons: {combined_df['season'].unique()}")
 
@@ -250,7 +253,7 @@ def save_training_data(df: pd.DataFrame):
     """
     output_path = DATA_DIR / "training_data_raw.csv"
     df.to_csv(output_path, index=False)
-    print(f"\n💾 Saved to: {output_path}")
+    print(f"\n[SAVED] Saved to: {output_path}")
 
     # Also save summary stats
     summary = {
@@ -266,7 +269,7 @@ def save_training_data(df: pd.DataFrame):
     with open(summary_path, 'w') as f:
         json.dump(summary, f, indent=2)
 
-    print(f"📊 Dataset Summary:")
+    print(f"[STATS] Dataset Summary:")
     print(f"   Total appearances: {summary['total_appearances']:,}")
     print(f"   Unique players: {summary['unique_players']:,}")
     print(f"   Seasons: {', '.join(summary['seasons'])}")
@@ -277,11 +280,11 @@ def main():
     """
     Main execution: Fetch 3 seasons of data and save for training.
     """
-    print("=" * 60)
-    print("FPL ML Training Data Ingestion")
-    print("=" * 60)
-    print(f"Fetching data for seasons: {', '.join(SEASONS)}")
-    print()
+    print("=" * 60, flush=True)
+    print("FPL ML Training Data Ingestion", flush=True)
+    print("=" * 60, flush=True)
+    print(f"Fetching data for seasons: {', '.join(SEASONS)}", flush=True)
+    print(flush=True)
 
     try:
         # Create combined dataset
@@ -290,11 +293,11 @@ def main():
         # Save to disk
         save_training_data(df)
 
-        print("\n✅ Data ingestion complete!")
+        print("\n[OK] Data ingestion complete!")
         print(f"   Next step: Run feature_engineering.py to prepare training features")
 
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n[ERROR] Error: {e}")
         raise
 
 

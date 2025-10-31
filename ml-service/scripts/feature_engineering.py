@@ -26,7 +26,7 @@ def load_raw_data() -> pd.DataFrame:
         )
 
     df = pd.read_csv(raw_path)
-    print(f"✅ Loaded {len(df)} appearances from {raw_path}")
+    print(f"[OK] Loaded {len(df)} appearances from {raw_path}")
     return df
 
 
@@ -63,7 +63,7 @@ def add_recent_form_features(df: pd.DataFrame, windows: List[int] = [3, 5, 8]) -
     Returns:
         DataFrame with added features
     """
-    print("\n🔧 Engineering recent form features...")
+    print("\n[BUILD] Engineering recent form features...")
 
     # Sort by player and gameweek
     df = df.sort_values(['fpl_id', 'season', 'gameweek'])
@@ -106,7 +106,7 @@ def add_recent_form_features(df: pd.DataFrame, windows: List[int] = [3, 5, 8]) -
     form_cols = [col for col in df.columns if any(f'last_{w}' in col for w in windows)]
     df[form_cols] = df[form_cols].fillna(0)
 
-    print(f"  ✅ Added {len(form_cols)} recent form features")
+    print(f"  [OK] Added {len(form_cols)} recent form features")
     return df
 
 
@@ -115,7 +115,7 @@ def add_role_lock_feature(df: pd.DataFrame) -> pd.DataFrame:
     Detect role lock (3+ consecutive 85+ minute starts).
     Matches heuristic engine logic.
     """
-    print("\n🔧 Engineering role lock feature...")
+    print("\n[BUILD] Engineering role lock feature...")
 
     df = df.sort_values(['fpl_id', 'season', 'gameweek'])
 
@@ -145,7 +145,7 @@ def add_role_lock_feature(df: pd.DataFrame) -> pd.DataFrame:
     # Role lock indicator (3+ consecutive)
     df['role_lock'] = (df['consecutive_85plus'] >= 3).astype(int)
 
-    print(f"  ✅ Role lock detected for {df['role_lock'].sum()} appearances")
+    print(f"  [OK] Role lock detected for {df['role_lock'].sum()} appearances")
     return df
 
 
@@ -153,12 +153,12 @@ def add_position_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     One-hot encode position (GK, DEF, MID, FWD).
     """
-    print("\n🔧 Engineering position features...")
+    print("\n[BUILD] Engineering position features...")
 
     position_dummies = pd.get_dummies(df['position'], prefix='pos')
     df = pd.concat([df, position_dummies], axis=1)
 
-    print(f"  ✅ Added position one-hot encoding: {list(position_dummies.columns)}")
+    print(f"  [OK] Added position one-hot encoding: {list(position_dummies.columns)}")
     return df
 
 
@@ -167,7 +167,7 @@ def add_temporal_features(df: pd.DataFrame) -> pd.DataFrame:
     Add temporal features (gameweek number, month).
     Captures seasonality (e.g., rotation in congested periods).
     """
-    print("\n🔧 Engineering temporal features...")
+    print("\n[BUILD] Engineering temporal features...")
 
     # Gameweek number (normalized to 0-1)
     df['gameweek_norm'] = df['gameweek'] / 38
@@ -181,7 +181,7 @@ def add_temporal_features(df: pd.DataFrame) -> pd.DataFrame:
         df['month'] = 0
         df['month_norm'] = 0
 
-    print(f"  ✅ Added temporal features: gameweek_norm, month_norm")
+    print(f"  [OK] Added temporal features: gameweek_norm, month_norm")
     return df
 
 
@@ -189,12 +189,12 @@ def add_match_context_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add match context features (home/away).
     """
-    print("\n🔧 Engineering match context features...")
+    print("\n[BUILD] Engineering match context features...")
 
     # Home/away binary
     df['is_home'] = (df['home_away'] == 'home').astype(int)
 
-    print(f"  ✅ Added match context: is_home")
+    print(f"  [OK] Added match context: is_home")
     return df
 
 
@@ -204,7 +204,7 @@ def add_target_variables(df: pd.DataFrame) -> pd.DataFrame:
     1. started (binary): Did the player start?
     2. minutes_if_started (continuous): Minutes played IF they started
     """
-    print("\n🎯 Creating target variables...")
+    print("\n[TARGET] Creating target variables...")
 
     # Target 1: Started (binary)
     df['target_started'] = df['started'].astype(int)
@@ -215,7 +215,7 @@ def add_target_variables(df: pd.DataFrame) -> pd.DataFrame:
         axis=1
     )
 
-    print(f"  ✅ Created targets: target_started, target_minutes_if_started")
+    print(f"  [OK] Created targets: target_started, target_minutes_if_started")
     print(f"     Start rate: {df['target_started'].mean():.2%}")
     print(f"     Avg minutes if started: {df['target_minutes_if_started'].mean():.1f}")
 
@@ -226,14 +226,14 @@ def add_lagged_target(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add previous gameweek's minutes as a feature (strong predictor).
     """
-    print("\n🔧 Engineering lagged target feature...")
+    print("\n[BUILD] Engineering lagged target feature...")
 
     df = df.sort_values(['fpl_id', 'season', 'gameweek'])
 
     df['prev_gw_minutes'] = df.groupby('fpl_id')['minutes'].shift(1).fillna(0)
     df['prev_gw_started'] = df.groupby('fpl_id')['started'].shift(1).fillna(0).astype(int)
 
-    print(f"  ✅ Added lagged features: prev_gw_minutes, prev_gw_started")
+    print(f"  [OK] Added lagged features: prev_gw_minutes, prev_gw_started")
     return df
 
 
@@ -303,7 +303,7 @@ def clean_and_validate(df: pd.DataFrame, feature_config: Dict) -> pd.DataFrame:
     """
     Clean dataset and validate features exist.
     """
-    print("\n🧹 Cleaning and validating dataset...")
+    print("\n[CLEAN] Cleaning and validating dataset...", flush=True)
 
     # Check for missing features
     all_features = (
@@ -321,16 +321,16 @@ def clean_and_validate(df: pd.DataFrame, feature_config: Dict) -> pd.DataFrame:
     dropped = initial_len - len(df)
 
     if dropped > 0:
-        print(f"  ⚠️  Dropped {dropped} rows with missing targets")
+        print(f"  [WARNING]  Dropped {dropped} rows with missing targets")
 
     # Check for infinite values
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     inf_mask = np.isinf(df[numeric_cols]).any(axis=1)
     if inf_mask.sum() > 0:
-        print(f"  ⚠️  Found {inf_mask.sum()} rows with infinite values, dropping...")
+        print(f"  [WARNING]  Found {inf_mask.sum()} rows with infinite values, dropping...")
         df = df[~inf_mask]
 
-    print(f"  ✅ Dataset cleaned: {len(df)} valid rows")
+    print(f"  [OK] Dataset cleaned: {len(df)} valid rows")
     return df
 
 
@@ -340,16 +340,16 @@ def save_engineered_data(df: pd.DataFrame, feature_config: Dict):
     """
     output_path = DATA_DIR / "training_data_features.csv"
     df.to_csv(output_path, index=False)
-    print(f"\n💾 Saved feature-engineered data: {output_path}")
+    print(f"\n[SAVED] Saved feature-engineered data: {output_path}")
 
     # Save feature configuration
     config_path = DATA_DIR / "feature_config.json"
     with open(config_path, 'w') as f:
         json.dump(feature_config, f, indent=2)
-    print(f"💾 Saved feature config: {config_path}")
+    print(f"[SAVED] Saved feature config: {config_path}")
 
     # Print summary
-    print(f"\n📊 Feature Engineering Summary:")
+    print(f"\n[STATS] Feature Engineering Summary:")
     print(f"   Total appearances: {len(df):,}")
     print(f"   Training samples (started): {df['target_started'].sum():,}")
     print(f"   Start rate: {df['target_started'].mean():.2%}")
@@ -387,11 +387,11 @@ def main():
         # Save
         save_engineered_data(df, feature_config)
 
-        print("\n✅ Feature engineering complete!")
+        print("\n[OK] Feature engineering complete!")
         print(f"   Next step: Run train_models.py to train ML models")
 
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n[ERROR] Error: {e}")
         raise
 
 
