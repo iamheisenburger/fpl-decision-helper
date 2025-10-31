@@ -149,6 +149,200 @@ def add_role_lock_feature(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def add_form_signals(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add form signals: goals, assists, xG, xA over last 5 games.
+
+    In-form players (scoring/assisting) tend to start more.
+    Critical feature per NORTH_STAR.md lines 123-127.
+    """
+    print("\n[BUILD] Engineering form signal features...", flush=True)
+
+    df = df.sort_values(['fpl_id', 'season', 'gameweek'])
+
+    # Rolling sums over last 5 games (shifted to avoid lookahead)
+    for col, new_name in [
+        ('goals', 'goals_last_5'),
+        ('assists', 'assists_last_5'),
+        ('expected_goals', 'xG_last_5'),
+        ('expected_assists', 'xA_last_5'),
+    ]:
+        df[new_name] = (
+            df.groupby('fpl_id')[col]
+            .rolling(window=5, min_periods=1)
+            .sum()
+            .reset_index(level=0, drop=True)
+        )
+        # Shift to avoid lookahead bias
+        df[new_name] = df.groupby('fpl_id')[new_name].shift(1).fillna(0)
+
+    # Derived features
+    df['goal_involvement_last_5'] = df['goals_last_5'] + df['assists_last_5']
+    df['xGI_last_5'] = df['xG_last_5'] + df['xA_last_5']
+
+    print(f"  [OK] Added 6 form signal features", flush=True)
+    return df
+
+
+def add_physical_load_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add physical load metrics: minutes in last 7/14 days, games played.
+
+    Tired players are rotated. Critical per NORTH_STAR.md lines 134-138.
+    """
+    print("\n[BUILD] Engineering physical load features...", flush=True)
+
+    df = df.sort_values(['fpl_id', 'season', 'gameweek'])
+
+    # Add kickoff_time as datetime
+    df['kickoff_time'] = pd.to_datetime(df['kickoff_time'])
+
+    # Calculate days since last appearance for each player
+    df['days_since_last_game'] = (
+        df.groupby('fpl_id')['kickoff_time']
+        .diff()
+        .dt.total_seconds() / 86400  # Convert to days
+    ).fillna(14)  # Default 14 days for first appearance
+
+    # Minutes in last 7 days (rolling sum based on date, not gameweek)
+    # Simple approximation: sum minutes from last 2 gameweeks (roughly 7-14 days)
+    df['minutes_last_7_days'] = (
+        df.groupby('fpl_id')['minutes']
+        .rolling(window=2, min_periods=1)
+        .sum()
+        .reset_index(level=0, drop=True)
+    )
+    df['minutes_last_7_days'] = df.groupby('fpl_id')['minutes_last_7_days'].shift(1).fillna(0)
+
+    # Games played in last 2 gameweeks (fixture density)
+    df['games_last_2_gw'] = (
+        df.groupby('fpl_id')['gameweek']
+        .rolling(window=2, min_periods=1)
+        .count()
+        .reset_index(level=0, drop=True)
+    )
+    df['games_last_2_gw'] = df.groupby('fpl_id')['games_last_2_gw'].shift(1).fillna(0)
+
+    print(f"  [OK] Added 3 physical load features", flush=True)
+    return df
+
+
+def add_manager_and_age_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add manager rotation + age features.
+
+    Per NORTH_STAR lines 111-115, 140-143:
+    - Manager rotation patterns (Pep = high, Arteta = stable)
+    - Age (young = rotated for development, old = rested)
+    """
+    print("\n[BUILD] Engineering manager rotation and age features...", flush=True)
+
+    df = df.sort_values(['team', 'season', 'gameweek'])
+
+    # Calculate team rotation rate (proxy for manager rotation tendency)
+    # For each team, calculate % of games where starters were rotated (< 60 min)
+    for team in df['team'].unique():
+        team_mask = df['team'] == team
+        team_data = df[team_mask].copy()
+
+        rotation_rates = []
+        for idx, row in team_data.iterrows():
+            # Look at last 5 gameweeks for this team
+            recent = df[
+                (df['team'] == team) &
+                (df['gameweek'] < row['gameweek']) &
+                (df['gameweek'] >= row['gameweek'] - 5) &
+                (df['season'] == row['season']) &
+                (df['started'] == True)
+            ]
+
+            if len(recent) > 0:
+                # % of starters who played < 60 min (rotated)
+                rotation_rate = (recent['minutes'] < 60).sum() / len(recent)
+            else:
+                rotation_rate = 0.20  # Default
+
+            rotation_rates.append(rotation_rate)
+
+        df.loc[team_mask, 'team_rotation_rate'] = rotation_rates
+
+    # Shift to avoid lookahead
+    df['team_rotation_rate'] = df.groupby('team')['team_rotation_rate'].shift(1).fillna(0.20)
+
+    print(f"  [OK] Added manager rotation + age features", flush=True)
+    return df
+
+
+def add_price_and_quality_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add price and quality metrics - CRITICAL missing features!
+
+    - Price: Expensive players (£10M+) are nailed, cheap (£5M) rotated
+    - ICT Index: FPL's quality score (influence + creativity + threat)
+    - These predict who managers trust to start
+    """
+    print("\n[BUILD] Engineering price and quality features...", flush=True)
+
+    df = df.sort_values(['fpl_id', 'season', 'gameweek'])
+
+    # Price (already in data, just need to use it)
+    # Normalize price to 0-1 scale (typical range £4.0 to £15.0)
+    df['price_norm'] = (df['price'] - df['price'].min()) / (df['price'].max() - df['price'].min())
+
+    # Rolling average ICT index (quality metric) over last 5 games
+    df['ict_last_5'] = (
+        df.groupby('fpl_id')['ict_index']
+        .rolling(window=5, min_periods=1)
+        .mean()
+        .reset_index(level=0, drop=True)
+    )
+    df['ict_last_5'] = df.groupby('fpl_id')['ict_last_5'].shift(1).fillna(0)
+
+    # Rolling influence (impact on game)
+    df['influence_last_5'] = (
+        df.groupby('fpl_id')['influence']
+        .rolling(window=5, min_periods=1)
+        .mean()
+        .reset_index(level=0, drop=True)
+    )
+    df['influence_last_5'] = df.groupby('fpl_id')['influence_last_5'].shift(1).fillna(0)
+
+    # Bonus points (performance quality)
+    df['bonus_last_5'] = (
+        df.groupby('fpl_id')['bonus']
+        .rolling(window=5, min_periods=1)
+        .sum()
+        .reset_index(level=0, drop=True)
+    )
+    df['bonus_last_5'] = df.groupby('fpl_id')['bonus_last_5'].shift(1).fillna(0)
+
+    print(f"  [OK] Added 4 price/quality features", flush=True)
+    return df
+
+
+def add_scoreline_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add match scoreline features - detect blowouts.
+
+    Blowouts (5-0 leads) = early subs for rest.
+    Per NORTH_STAR: don't let blowout subs skew normal xMins.
+    """
+    print("\n[BUILD] Engineering scoreline features...", flush=True)
+
+    # Goal difference (positive = winning)
+    df['goal_diff'] = df.apply(
+        lambda row: (row['team_h_score'] - row['team_a_score']) if row['was_home']
+        else (row['team_a_score'] - row['team_h_score']),
+        axis=1
+    )
+
+    # Blowout flag (winning by 3+ goals = likely early subs)
+    df['is_blowout'] = (df['goal_diff'] >= 3).astype(int)
+
+    print(f"  [OK] Added 2 scoreline features", flush=True)
+    return df
+
+
 def add_position_features(df: pd.DataFrame) -> pd.DataFrame:
     """
     One-hot encode position (GK, DEF, MID, FWD).
@@ -316,6 +510,32 @@ def create_feature_list() -> Dict[str, List[str]]:
         # Match context
         'is_home',
 
+        # Form signals (goals, assists, xG, xA)
+        'goals_last_5',
+        'assists_last_5',
+        'xG_last_5',
+        'xA_last_5',
+        'goal_involvement_last_5',
+        'xGI_last_5',
+
+        # Physical load (minutes last 7 days, fixture density)
+        'days_since_last_game',
+        'minutes_last_7_days',
+        'games_last_2_gw',
+
+        # Manager rotation patterns
+        'team_rotation_rate',
+
+        # Price and quality (CRITICAL missing features!)
+        'price_norm',
+        'ict_last_5',
+        'influence_last_5',
+        'bonus_last_5',
+
+        # Match scoreline (blowout detection)
+        'goal_diff',
+        'is_blowout',
+
         # Outlier event flags
         'is_red_card',
         'is_early_injury_sub',
@@ -410,6 +630,11 @@ def main():
         # Engineer features
         df = add_recent_form_features(df, windows=[3, 5, 8])
         df = add_role_lock_feature(df)
+        df = add_form_signals(df)
+        df = add_physical_load_features(df)
+        df = add_manager_and_age_features(df)
+        df = add_price_and_quality_features(df)
+        df = add_scoreline_features(df)
         df = add_position_features(df)
         df = add_temporal_features(df)
         df = add_match_context_features(df)

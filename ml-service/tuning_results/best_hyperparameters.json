@@ -1,0 +1,27 @@
+{
+  "start_model": {
+    "best_params": {
+      "learning_rate": 0.05,
+      "max_depth": 6,
+      "min_child_weight": 5,
+      "n_estimators": 100,
+      "subsample": 0.8
+    },
+    "best_score": 0.9455945765286113,
+    "test_accuracy": 0.8794890335020487,
+    "elapsed_minutes": 0.5795048594474792
+  },
+  "minutes_model": {
+    "best_params": {
+      "learning_rate": 0.05,
+      "max_depth": 4,
+      "min_child_weight": 3,
+      "n_estimators": 200,
+      "subsample": 0.8
+    },
+    "best_cv_mae": 10.907018431366675,
+    "test_mae": 10.897599726020932,
+    "elapsed_minutes": 0.20779240528742474
+  },
+  "tuned_at": "2025-10-31T16:43:09.790669"
+}

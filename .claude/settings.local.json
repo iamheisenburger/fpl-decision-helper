@@ -10,7 +10,15 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(if exist \".next\" rmdir /s /q \".next\")",
-      "Bash(npx convex codegen:*)"
+      "Bash(npx convex codegen:*)",
+      "Bash(winget install:*)",
+      "Bash(py -3.11 --version:*)",
+      "Bash(py -3.11 -m pip install -r requirements.txt)",
+      "Bash(py -3.11 scripts/ingest_historical_data.py)",
+      "Bash(py -3.11 fix_encoding.py:*)",
+      "Bash(set PYTHONIOENCODING=utf-8:*)",
+      "Bash(timeout /t 10)",
+      "Bash(py:*)"
     ],
     "deny": [],
     "ask": []
