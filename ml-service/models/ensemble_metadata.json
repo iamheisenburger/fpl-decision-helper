@@ -1,0 +1,13 @@
+{
+  "ensemble_type": "average",
+  "models": [
+    "xgboost",
+    "lightgbm",
+    "catboost"
+  ],
+  "accuracy_metrics": {
+    "accuracy_within_20min": 0.7623535404992359,
+    "accuracy_within_25min": 0.7947019867549668,
+    "accuracy_within_30min": 0.8283239938869078
+  }
+}

@@ -407,13 +407,28 @@ def main():
     """
     Main execution: Train both models and save.
     """
+    import sys
+
     print("=" * 60)
     print("FPL ML Model Training")
     print("=" * 60)
 
+    # Check for --exclude-outliers flag
+    exclude_outliers = '--exclude-outliers' in sys.argv
+    if exclude_outliers:
+        print("[MODE] Excluding outliers from training (target: higher accuracy)")
+
     try:
         # Load data
         df, config = load_training_data()
+
+        # Exclude outliers if flag is set
+        if exclude_outliers:
+            initial_len = len(df)
+            df = df[df['is_outlier_event'] == 0].copy()
+            excluded = initial_len - len(df)
+            print(f"[CLEAN] Excluded {excluded:,} outlier events ({excluded/initial_len*100:.1f}% of data)")
+            print(f"[CLEAN] Training on {len(df):,} normal appearances")
 
         # Prepare train/test splits
         splits = prepare_train_test_split(df, config, test_size=0.2)

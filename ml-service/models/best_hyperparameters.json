@@ -1,0 +1,23 @@
+{
+  "start_model": {
+    "colsample_bytree": 0.9,
+    "learning_rate": 0.03,
+    "max_depth": 4,
+    "min_child_weight": 3,
+    "n_estimators": 200,
+    "subsample": 0.7
+  },
+  "minutes_model": {
+    "colsample_bytree": 0.8,
+    "learning_rate": 0.05,
+    "max_depth": 4,
+    "min_child_weight": 5,
+    "n_estimators": 200,
+    "subsample": 0.8
+  },
+  "accuracy_metrics": {
+    "accuracy_within_20min": 0.760825267447784,
+    "accuracy_within_25min": 0.7952114111054508,
+    "accuracy_within_30min": 0.8239938869077942
+  }
+}

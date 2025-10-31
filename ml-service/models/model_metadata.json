@@ -1,7 +1,7 @@
 {
   "model_version": "v1.0",
   "model_type": "xgboost_classifier_regressor",
-  "trained_at": "2025-10-31T17:51:01.454602",
+  "trained_at": "2025-10-31T17:59:27.899791",
   "feature_config": {
     "start_features": [
       "pos_GK",
@@ -108,32 +108,32 @@
   },
   "metrics": {
     "start_model": {
-      "train_accuracy": 0.8988730187428434,
-      "test_accuracy": 0.8903350204868643,
-      "roc_auc": 0.9571789247313907,
-      "precision": 0.8369504730105731,
-      "recall": 0.9027611044417767,
-      "f1_score": 0.8686110308980652,
-      "cv_mean": 0.8838674655448809,
-      "cv_std": 0.006520565973814145
+      "train_accuracy": 0.9018721344880285,
+      "test_accuracy": 0.8779928680590933,
+      "roc_auc": 0.9463292872475313,
+      "precision": 0.8035264483627204,
+      "recall": 0.8842688842688843,
+      "f1_score": 0.8419663477400198,
+      "cv_mean": 0.8765284900544879,
+      "cv_std": 0.0054778473403030385
     },
     "minutes_model": {
-      "train_mae": 9.595072755654677,
-      "test_mae": 10.69906816791658,
-      "train_rmse": 13.86717287889478,
-      "test_rmse": 15.392827200211713,
-      "train_r2": 0.7758657207875077,
-      "test_r2": 0.7247240266225115,
-      "cv_mae_mean": 10.745442155515383,
-      "cv_mae_std": 0.3260684852842968
+      "train_mae": 9.782583607457532,
+      "test_mae": 11.511861900282005,
+      "train_rmse": 13.988020672449908,
+      "test_rmse": 16.366916529226124,
+      "train_r2": 0.4765858785466527,
+      "test_r2": 0.30091260908227047,
+      "cv_mae_mean": 11.52907515720943,
+      "cv_mae_std": 0.43492082069398275
     },
     "combined": {
-      "combined_mae": 17.09990119934082,
-      "accuracy_within_20min": 0.7136659436008677,
-      "accuracy_within_25min": 0.7466859484213063,
-      "accuracy_within_30min": 0.7770547119787901,
-      "avg_predicted_xmins": 29.83309555053711,
-      "avg_actual_xmins": 32.1234032296939
+      "combined_mae": 14.392123222351074,
+      "accuracy_within_20min": 0.7529291900152827,
+      "accuracy_within_25min": 0.7906265919510953,
+      "accuracy_within_30min": 0.8194090677534386,
+      "avg_predicted_xmins": 31.29388999938965,
+      "avg_actual_xmins": 29.403973509933774
     }
   },
   "xgboost_version": "3.1.1"
