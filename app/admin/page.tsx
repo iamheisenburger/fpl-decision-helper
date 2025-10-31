@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 
 export default function AdminPage() {
   const [syncStatus, setSyncStatus] = useState("");
+  const [historyStatus, setHistoryStatus] = useState("");
   const [contextStatus, setContextStatus] = useState("");
   const [fixtureStatus, setFixtureStatus] = useState("");
   const [predictionStatus, setPredictionStatus] = useState("");
@@ -17,6 +18,7 @@ export default function AdminPage() {
   const [deadline, setDeadline] = useState<string | null>(null);
 
   const syncPlayers = useAction(api.dataIngestion.syncPlayers);
+  const syncHistory = useAction(api.dataIngestion.ingestAllPlayersHistory);
   const syncGameweekContext = useAction(api.dataIngestion.syncGameweekContext);
   const syncFixtures = useAction(api.fixtures.syncFixtures);
   const generateAllPredictions = useAction(api.engines.multiWeekPredictor.generateAllPlayersMultiWeek);
@@ -60,6 +62,20 @@ export default function AdminPage() {
       }
     } catch (error) {
       setSyncStatus(`❌ Error: ${error}`);
+    }
+  };
+
+  const handleSyncHistory = async () => {
+    setHistoryStatus("Syncing historical appearances for all players...\nThis will take 20-30 minutes (725 players × ~9 games each)");
+    try {
+      const result = await syncHistory({});
+      if (result.success) {
+        setHistoryStatus(`✅ Synced ${result.synced} players, ${result.totalAppearances} appearances`);
+      } else {
+        setHistoryStatus(`❌ Error: ${result.error}`);
+      }
+    } catch (error) {
+      setHistoryStatus(`❌ Error: ${error}`);
     }
   };
 
@@ -189,6 +205,20 @@ export default function AdminPage() {
             {syncStatus && (
               <div className="text-sm">
                 {syncStatus}
+              </div>
+            )}
+
+            <div className="flex items-center gap-4 mt-4">
+              <Button onClick={handleSyncHistory} className="bg-green-600 hover:bg-green-700">
+                Sync Historical Appearances
+              </Button>
+              <Badge variant="outline">
+                Required for predictions (run once after player sync)
+              </Badge>
+            </div>
+            {historyStatus && (
+              <div className="text-sm whitespace-pre-line">
+                {historyStatus}
               </div>
             )}
 
