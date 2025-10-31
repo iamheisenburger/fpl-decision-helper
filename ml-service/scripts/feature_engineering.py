@@ -307,6 +307,24 @@ def add_price_and_quality_features(df: pd.DataFrame) -> pd.DataFrame:
     )
     df['influence_last_5'] = df.groupby('fpl_id')['influence_last_5'].shift(1).fillna(0)
 
+    # Rolling creativity (chance creation)
+    df['creativity_last_5'] = (
+        df.groupby('fpl_id')['creativity']
+        .rolling(window=5, min_periods=1)
+        .mean()
+        .reset_index(level=0, drop=True)
+    )
+    df['creativity_last_5'] = df.groupby('fpl_id')['creativity_last_5'].shift(1).fillna(0)
+
+    # Rolling threat (goal threat)
+    df['threat_last_5'] = (
+        df.groupby('fpl_id')['threat']
+        .rolling(window=5, min_periods=1)
+        .mean()
+        .reset_index(level=0, drop=True)
+    )
+    df['threat_last_5'] = df.groupby('fpl_id')['threat_last_5'].shift(1).fillna(0)
+
     # Bonus points (performance quality)
     df['bonus_last_5'] = (
         df.groupby('fpl_id')['bonus']
@@ -316,7 +334,7 @@ def add_price_and_quality_features(df: pd.DataFrame) -> pd.DataFrame:
     )
     df['bonus_last_5'] = df.groupby('fpl_id')['bonus_last_5'].shift(1).fillna(0)
 
-    print(f"  [OK] Added 4 price/quality features", flush=True)
+    print(f"  [OK] Added 6 price/quality features", flush=True)
     return df
 
 
@@ -376,6 +394,91 @@ def add_temporal_features(df: pd.DataFrame) -> pd.DataFrame:
         df['month_norm'] = 0
 
     print(f"  [OK] Added temporal features: gameweek_norm, month_norm")
+    return df
+
+
+def add_opponent_difficulty_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add opponent difficulty/strength features.
+
+    Stronger opponents = harder to score/play well = potentially fewer minutes.
+    Top 6 teams rotate more vs weaker opponents.
+    """
+    print("\n[BUILD] Engineering opponent difficulty features...", flush=True)
+
+    # Fetch current team strengths from FPL API
+    import requests
+    try:
+        bootstrap = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/").json()
+
+        # Create team strength lookup
+        team_strength = {}
+        for team in bootstrap['teams']:
+            team_strength[team['name']] = {
+                'overall_strength': team['strength'],
+                'attack_home': team['strength_attack_home'],
+                'attack_away': team['strength_attack_away'],
+                'defence_home': team['strength_defence_home'],
+                'defence_away': team['strength_defence_away'],
+            }
+
+        # Add opponent strength features
+        df['opponent_strength'] = df['opponent'].map(
+            lambda x: team_strength.get(x, {}).get('overall_strength', 3)
+        )
+
+        # Normalize to 0-1 scale
+        df['opponent_strength_norm'] = (df['opponent_strength'] - 2) / 3  # Range 2-5 -> 0-1
+
+        # Top 6 opponent flag (strength >= 4.5)
+        df['is_top6_opponent'] = (df['opponent_strength'] >= 4.5).astype(int)
+
+        print(f"  [OK] Added 3 opponent difficulty features", flush=True)
+
+    except Exception as e:
+        print(f"  [WARNING] Could not fetch team strengths: {e}", flush=True)
+        df['opponent_strength'] = 3
+        df['opponent_strength_norm'] = 0.5
+        df['is_top6_opponent'] = 0
+
+    return df
+
+
+def add_substitution_pattern_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add substitution timing patterns.
+
+    Players who are frequently subbed early (60-70 min) are being rotated.
+    Players who play 85+ consistently are nailed.
+    """
+    print("\n[BUILD] Engineering substitution pattern features...", flush=True)
+
+    df = df.sort_values(['fpl_id', 'season', 'gameweek'])
+
+    # Flag for different substitution windows (when started)
+    df['subbed_60_75'] = ((df['started'] == True) & (df['minutes'] >= 60) & (df['minutes'] <= 75)).astype(int)
+    df['subbed_75_85'] = ((df['started'] == True) & (df['minutes'] >= 75) & (df['minutes'] <= 85)).astype(int)
+    df['full_90'] = ((df['started'] == True) & (df['minutes'] >= 85)).astype(int)
+
+    # Rolling average: % of recent starts ending in 60-75 min sub (rotation signal)
+    df['early_sub_rate_last_5'] = (
+        df.groupby('fpl_id')['subbed_60_75']
+        .rolling(window=5, min_periods=1)
+        .mean()
+        .reset_index(level=0, drop=True)
+    )
+    df['early_sub_rate_last_5'] = df.groupby('fpl_id')['early_sub_rate_last_5'].shift(1).fillna(0)
+
+    # Rolling average: % of recent starts playing 85+ min (nailed signal)
+    df['full_90_rate_last_5'] = (
+        df.groupby('fpl_id')['full_90']
+        .rolling(window=5, min_periods=1)
+        .mean()
+        .reset_index(level=0, drop=True)
+    )
+    df['full_90_rate_last_5'] = df.groupby('fpl_id')['full_90_rate_last_5'].shift(1).fillna(0)
+
+    print(f"  [OK] Added 2 substitution pattern features", flush=True)
     return df
 
 
@@ -530,6 +633,8 @@ def create_feature_list() -> Dict[str, List[str]]:
         'price_norm',
         'ict_last_5',
         'influence_last_5',
+        'creativity_last_5',
+        'threat_last_5',
         'bonus_last_5',
 
         # Match scoreline (blowout detection)
@@ -539,6 +644,14 @@ def create_feature_list() -> Dict[str, List[str]]:
         # Outlier event flags
         'is_red_card',
         'is_early_injury_sub',
+
+        # Opponent difficulty (NEW - helps with rotation vs strong teams)
+        'opponent_strength_norm',
+        'is_top6_opponent',
+
+        # Substitution patterns (NEW - detects rotation tendencies)
+        'early_sub_rate_last_5',
+        'full_90_rate_last_5',
     ]
 
     # Features for predicting MINUTES (Stage 2: Linear Regression)
@@ -637,6 +750,8 @@ def main():
         df = add_scoreline_features(df)
         df = add_position_features(df)
         df = add_temporal_features(df)
+        df = add_opponent_difficulty_features(df)  # NEW
+        df = add_substitution_pattern_features(df)  # NEW
         df = add_match_context_features(df)
         df = add_lagged_target(df)
         df = engineer_outlier_flags(df)

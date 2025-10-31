@@ -85,12 +85,27 @@ def fetch_fpl_current_season() -> pd.DataFrame:
                     'minutes': match['minutes'],
                     'opponent': team_map.get(match['opponent_team'], 'Unknown'),
                     'home_away': 'home' if match['was_home'] else 'away',
+                    'was_home': match['was_home'],
                     'kickoff_time': match['kickoff_time'],
                     'red_card': match.get('red_cards', 0) > 0,
                     'yellow_card': match.get('yellow_cards', 0) > 0,
                     'goals': match.get('goals_scored', 0),
                     'assists': match.get('assists', 0),
                     'points': match.get('total_points', 0),
+                    # CRITICAL: Add ICT/influence/bonus data (previously defaulted to 0)
+                    'ict_index': match.get('ict_index', 0),
+                    'influence': match.get('influence', 0),
+                    'creativity': match.get('creativity', 0),
+                    'threat': match.get('threat', 0),
+                    'bonus': match.get('bonus', 0),
+                    'bps': match.get('bps', 0),
+                    # Add expected stats (xG, xA)
+                    'expected_goals': match.get('expected_goals', 0),
+                    'expected_assists': match.get('expected_assists', 0),
+                    'expected_goal_involvements': match.get('expected_goal_involvements', 0),
+                    # Add team scores for scoreline features
+                    'team_h_score': match.get('team_h_score', 0),
+                    'team_a_score': match.get('team_a_score', 0),
                 })
 
             # Rate limiting
@@ -160,6 +175,16 @@ def fetch_historical_season(season: str) -> pd.DataFrame:
         }
 
         gw_df = gw_df.rename(columns=column_mapping)
+
+        # Ensure all required columns exist (fill with 0 if missing from historical data)
+        required_cols = [
+            'ict_index', 'influence', 'creativity', 'threat', 'bonus', 'bps',
+            'expected_goals', 'expected_assists', 'expected_goal_involvements',
+            'team_h_score', 'team_a_score'
+        ]
+        for col in required_cols:
+            if col not in gw_df.columns:
+                gw_df[col] = 0
 
         return gw_df
 

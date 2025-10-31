@@ -1,7 +1,7 @@
 {
   "model_version": "v1.0",
   "model_type": "xgboost_classifier_regressor",
-  "trained_at": "2025-10-31T17:06:42.585985",
+  "trained_at": "2025-10-31T17:51:01.454602",
   "feature_config": {
     "start_features": [
       "pos_GK",
@@ -40,11 +40,17 @@
       "price_norm",
       "ict_last_5",
       "influence_last_5",
+      "creativity_last_5",
+      "threat_last_5",
       "bonus_last_5",
       "goal_diff",
       "is_blowout",
       "is_red_card",
-      "is_early_injury_sub"
+      "is_early_injury_sub",
+      "opponent_strength_norm",
+      "is_top6_opponent",
+      "early_sub_rate_last_5",
+      "full_90_rate_last_5"
     ],
     "minutes_features": [
       "pos_GK",
@@ -83,11 +89,17 @@
       "price_norm",
       "ict_last_5",
       "influence_last_5",
+      "creativity_last_5",
+      "threat_last_5",
       "bonus_last_5",
       "goal_diff",
       "is_blowout",
       "is_red_card",
-      "is_early_injury_sub"
+      "is_early_injury_sub",
+      "opponent_strength_norm",
+      "is_top6_opponent",
+      "early_sub_rate_last_5",
+      "full_90_rate_last_5"
     ],
     "targets": {
       "start": "target_started",
@@ -96,29 +108,32 @@
   },
   "metrics": {
     "start_model": {
-      "train_accuracy": 0.8970650274212018,
-      "test_accuracy": 0.8905760424198602,
-      "roc_auc": 0.9576893584658994,
-      "precision": 0.8377926421404682,
-      "recall": 0.9021608643457383,
-      "f1_score": 0.86878612716763,
-      "cv_mean": 0.8826018243728321,
-      "cv_std": 0.006688878082340031
+      "train_accuracy": 0.8988730187428434,
+      "test_accuracy": 0.8903350204868643,
+      "roc_auc": 0.9571789247313907,
+      "precision": 0.8369504730105731,
+      "recall": 0.9027611044417767,
+      "f1_score": 0.8686110308980652,
+      "cv_mean": 0.8838674655448809,
+      "cv_std": 0.006520565973814145
     },
     "minutes_model": {
-      "train_mae": 9.635342138483974,
-      "test_mae": 10.756820132752427,
-      "train_rmse": 13.90249622212203,
-      "test_rmse": 15.398960640714428,
-      "train_r2": 0.7747224083467468,
-      "test_r2": 0.7245046094665759,
-      "cv_mae_mean": 10.7654586793094,
-      "cv_mae_std": 0.3361640725729778
+      "train_mae": 9.595072755654677,
+      "test_mae": 10.69906816791658,
+      "train_rmse": 13.86717287889478,
+      "test_rmse": 15.392827200211713,
+      "train_r2": 0.7758657207875077,
+      "test_r2": 0.7247240266225115,
+      "cv_mae_mean": 10.745442155515383,
+      "cv_mae_std": 0.3260684852842968
     },
     "combined": {
-      "combined_mae": 17.039445877075195,
-      "accuracy_within_15min": 0.6755844781875151,
-      "avg_predicted_xmins": 29.845474243164062
+      "combined_mae": 17.09990119934082,
+      "accuracy_within_20min": 0.7136659436008677,
+      "accuracy_within_25min": 0.7466859484213063,
+      "accuracy_within_30min": 0.7770547119787901,
+      "avg_predicted_xmins": 29.83309555053711,
+      "avg_actual_xmins": 32.1234032296939
     }
   },
   "xgboost_version": "3.1.1"
