@@ -236,9 +236,30 @@ export const ingestAllPlayersHistory = action({
         await Promise.all(
           batch.map(async (player: any) => {
             try {
-              // Note: We need to map Convex player to FPL ID
-              // For now, we'll skip this and let user manually trigger
-              results.successCount++;
+              if (!player.fplId) {
+                results.failedCount++;
+                results.errors.push({
+                  playerName: player.name,
+                  error: "No FPL ID found",
+                });
+                return;
+              }
+
+              const result = await ctx.runAction(api.dataIngestion.ingestPlayerHistory, {
+                fplPlayerId: player.fplId,
+                playerName: player.name,
+                season,
+              });
+
+              if (result.success) {
+                results.successCount++;
+              } else {
+                results.failedCount++;
+                results.errors.push({
+                  playerName: player.name,
+                  error: result.error || "Unknown error",
+                });
+              }
             } catch (error) {
               results.failedCount++;
               results.errors.push({
