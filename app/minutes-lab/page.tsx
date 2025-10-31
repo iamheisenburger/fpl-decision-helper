@@ -28,15 +28,15 @@ export default function MinutesLabPage() {
   const getCurrentGW = useAction(api.utils.gameweekDetection.getCurrentGameweek);
   const getPlayerOutlook = useAction(api.engines.multiWeekPredictor.getPlayerOutlook);
 
-  // Fetch current gameweek on load
+  // Fetch current gameweek on load and default to NEXT gameweek
   useEffect(() => {
     const fetchGameweek = async () => {
       try {
         const gw = await getCurrentGW({});
-        setSelectedGameweek(gw);
+        setSelectedGameweek(gw + 1); // Show NEXT gameweek (predictions start from current+1)
       } catch (error) {
         console.error("Failed to fetch current gameweek:", error);
-        setSelectedGameweek(9); // Fallback to 9
+        setSelectedGameweek(10); // Fallback to 10
       }
     };
     fetchGameweek();
