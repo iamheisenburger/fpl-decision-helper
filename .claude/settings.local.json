@@ -26,15 +26,19 @@
       "Bash(timeout /t 60)",
       "Bash(cat:*)",
       "Bash(git pull:*)",
-      "Bash(railway status:*)"
+      "Bash(railway status:*)",
+      "Bash(npm install:*)",
+      "Bash(railway login:*)",
+      "Bash(if exist .railway dir /b .railway)",
+      "Bash(gh repo view:*)"
     ],
     "deny": [],
     "ask": []
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "github",
     "filesystem",
     "convex"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

@@ -36,12 +36,18 @@ This will:
 
 ---
 
-## Step 3: Configure Convex
+## Step 3: Complete Setup (AUTOMATED)
 
-Double-click: **`configure-convex.bat`**
+Double-click: **`complete-setup.bat`**
 
-It will ask for your ML service URL from Step 2.
-Paste it and press Enter.
+This will:
+- Open your Railway dashboard
+- Ask for your deployment URL
+- Test the ML service
+- Auto-configure Convex
+- Verify everything works
+
+**Alternative:** Run `configure-convex.bat` if you just want to set the URL manually.
 
 ---
 

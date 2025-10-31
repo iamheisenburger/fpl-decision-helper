@@ -40,3 +40,4 @@ next-env.d.ts
 
 # MCP config (contains sensitive tokens)
 .mcp.json
+nul
