@@ -24,9 +24,17 @@
       "Bash(dir:*)",
       "Bash(del \"PHASE_5_ML_DEPLOYMENT_GUIDE.md\")",
       "Bash(timeout /t 60)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git pull:*)",
+      "Bash(railway status:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "github",
+    "filesystem",
+    "convex"
+  ],
+  "enableAllProjectMcpServers": true
 }
