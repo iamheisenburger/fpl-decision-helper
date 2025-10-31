@@ -237,6 +237,40 @@ def add_lagged_target(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def engineer_outlier_flags(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Detect outlier events that skew minutes predictions.
+
+    Outliers:
+    - Red cards (forced early sub)
+    - Early injury subs (started but < 20 min)
+    - These events shouldn't influence "normal" xMins predictions
+    """
+    print("\n[BUILD] Engineering outlier event flags...")
+
+    # Red card flag (already have column)
+    df['is_red_card'] = df['red_card'].astype(int)
+
+    # Early injury-like substitution: started but played < 20 minutes
+    # Likely injury, not tactical - shouldn't penalize player's normal xMins
+    df['is_early_injury_sub'] = ((df['started'] == True) &
+                                   (df['minutes'] < 20) &
+                                   (df['minutes'] > 0)).astype(int)
+
+    # Combined outlier flag
+    df['is_outlier_event'] = ((df['is_red_card'] == 1) |
+                               (df['is_early_injury_sub'] == 1)).astype(int)
+
+    outlier_count = df['is_outlier_event'].sum()
+    outlier_pct = outlier_count / len(df) * 100
+
+    print(f"  [OK] Detected {outlier_count:,} outlier events ({outlier_pct:.1f}% of data)")
+    print(f"     Red cards: {df['is_red_card'].sum()}")
+    print(f"     Early injury subs: {df['is_early_injury_sub'].sum()}")
+
+    return df
+
+
 def create_feature_list() -> Dict[str, List[str]]:
     """
     Define which columns are features for the ML models.
@@ -281,6 +315,10 @@ def create_feature_list() -> Dict[str, List[str]]:
 
         # Match context
         'is_home',
+
+        # Outlier event flags
+        'is_red_card',
+        'is_early_injury_sub',
     ]
 
     # Features for predicting MINUTES (Stage 2: Linear Regression)
@@ -376,6 +414,7 @@ def main():
         df = add_temporal_features(df)
         df = add_match_context_features(df)
         df = add_lagged_target(df)
+        df = engineer_outlier_flags(df)
         df = add_target_variables(df)
 
         # Get feature configuration

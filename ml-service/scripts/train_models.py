@@ -129,15 +129,16 @@ def train_start_model(splits: Dict) -> Tuple:
     n_positive = (splits['start']['y_train'] == 1).sum()
     scale_pos_weight = n_negative / n_positive
 
-    # Train XGBoost Classifier
+    # Train XGBoost Classifier with optimized hyperparameters
     model = xgb.XGBClassifier(
         max_depth=6,
-        learning_rate=0.1,
-        n_estimators=200,
+        learning_rate=0.05,
+        n_estimators=100,
+        min_child_weight=5,
+        subsample=0.8,
         scale_pos_weight=scale_pos_weight,  # Handle class imbalance
         random_state=42,
         eval_metric='logloss',
-        use_label_encoder=False,
     )
 
     model.fit(splits['start']['X_train'], splits['start']['y_train'])
@@ -206,11 +207,13 @@ def train_minutes_model(splits: Dict) -> Tuple:
     """
     print("\n[MODEL] Training Stage 2: Minutes Prediction Model (XGBoost)...")
 
-    # Train XGBoost Regressor
+    # Train XGBoost Regressor with optimized hyperparameters
     model = xgb.XGBRegressor(
-        max_depth=5,
-        learning_rate=0.1,
+        max_depth=4,
+        learning_rate=0.05,
         n_estimators=200,
+        min_child_weight=3,
+        subsample=0.8,
         random_state=42,
         objective='reg:squarederror',
     )
