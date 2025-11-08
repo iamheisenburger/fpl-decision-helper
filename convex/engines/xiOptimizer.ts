@@ -58,12 +58,13 @@ export const optimizeXI = query({
     preferredFormation: v.optional(
       v.union(
         v.literal("any"),
-        v.literal("4-4-2"),
+        v.literal("3-4-3"),
         v.literal("3-5-2"),
         v.literal("4-3-3"),
-        v.literal("3-4-3"),
-        v.literal("5-4-1"),
-        v.literal("5-3-2")
+        v.literal("4-4-2"),
+        v.literal("4-5-1"),
+        v.literal("5-3-2"),
+        v.literal("5-4-1")
       )
     ),
   },
@@ -141,23 +142,26 @@ export const optimizeXI = query({
 
     if (args.preferredFormation) {
       // Parse preferred formation
-      if (args.preferredFormation === "4-4-2") {
-        formationsToTry.push({ gk: 1, def: 4, mid: 4, fwd: 2 });
+      if (args.preferredFormation === "3-4-3") {
+        formationsToTry.push({ gk: 1, def: 3, mid: 4, fwd: 3 });
       } else if (args.preferredFormation === "3-5-2") {
         formationsToTry.push({ gk: 1, def: 3, mid: 5, fwd: 2 });
       } else if (args.preferredFormation === "4-3-3") {
         formationsToTry.push({ gk: 1, def: 4, mid: 3, fwd: 3 });
-      } else if (args.preferredFormation === "3-4-3") {
-        formationsToTry.push({ gk: 1, def: 3, mid: 4, fwd: 3 });
-      } else if (args.preferredFormation === "5-4-1") {
-        formationsToTry.push({ gk: 1, def: 5, mid: 4, fwd: 1 });
+      } else if (args.preferredFormation === "4-4-2") {
+        formationsToTry.push({ gk: 1, def: 4, mid: 4, fwd: 2 });
+      } else if (args.preferredFormation === "4-5-1") {
+        formationsToTry.push({ gk: 1, def: 4, mid: 5, fwd: 1 });
       } else if (args.preferredFormation === "5-3-2") {
         formationsToTry.push({ gk: 1, def: 5, mid: 3, fwd: 2 });
+      } else if (args.preferredFormation === "5-4-1") {
+        formationsToTry.push({ gk: 1, def: 5, mid: 4, fwd: 1 });
       } else {
         // "any" - try all valid formations
         formationsToTry.push(
           { gk: 1, def: 3, mid: 5, fwd: 2 },
           { gk: 1, def: 3, mid: 4, fwd: 3 },
+          { gk: 1, def: 4, mid: 5, fwd: 1 },
           { gk: 1, def: 4, mid: 4, fwd: 2 },
           { gk: 1, def: 4, mid: 3, fwd: 3 },
           { gk: 1, def: 5, mid: 4, fwd: 1 },
@@ -169,6 +173,7 @@ export const optimizeXI = query({
       formationsToTry.push(
         { gk: 1, def: 3, mid: 5, fwd: 2 },
         { gk: 1, def: 3, mid: 4, fwd: 3 },
+        { gk: 1, def: 4, mid: 5, fwd: 1 },
         { gk: 1, def: 4, mid: 4, fwd: 2 },
         { gk: 1, def: 4, mid: 3, fwd: 3 },
         { gk: 1, def: 5, mid: 4, fwd: 1 },
