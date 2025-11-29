@@ -67,7 +67,6 @@ const emptyPlayer = {
   ev: 0,
   ev95: 0,
   xMins: 0,
-  eo: 0,
 };
 
 export default function EVOptimizerPage() {
@@ -100,7 +99,7 @@ export default function EVOptimizerPage() {
         ev: parseFloat(p.ev as any) || 0,
         ev95: parseFloat(p.ev95 as any) || 0,
         xMins: parseInt(p.xMins as any) || 0,
-        eo: parseFloat(p.eo as any) || 0,
+        eo: 0,
         raev: 0,
       }))
       .map(p => ({
@@ -184,21 +183,21 @@ export default function EVOptimizerPage() {
   const quickFill = () => {
     // Quick fill with actual user data from screenshot
     setPlayers([
-      { name: "raya", position: "GK", ev: 4.4, ev95: 4.4, xMins: 95, eo: 32.3 },
-      { name: "dubravka", position: "GK", ev: 3.3, ev95: 3.3, xMins: 93, eo: 34.4 },
-      { name: "tarkowski", position: "DEF", ev: 4.7, ev95: 4.7, xMins: 95, eo: 6.1 },
-      { name: "andersen", position: "DEF", ev: 4, ev95: 4.2, xMins: 91, eo: 2.8 },
-      { name: "gvardiol", position: "DEF", ev: 3.5, ev95: 3.8, xMins: 86, eo: 5.1 },
-      { name: "gabriel", position: "DEF", ev: 5.4, ev95: 5.4, xMins: 95, eo: 43.3 },
-      { name: "senesi", position: "DEF", ev: 3.6, ev95: 3.8, xMins: 87, eo: 25.9 },
-      { name: "enzo", position: "MID", ev: 5.8, ev95: 6.1, xMins: 88, eo: 14.9 },
-      { name: "saka", position: "MID", ev: 5.7, ev95: 6.4, xMins: 84, eo: 17.2 },
-      { name: "bruno", position: "MID", ev: 5.5, ev95: 5.8, xMins: 89, eo: 16.2 },
-      { name: "ndiaye", position: "MID", ev: 4.7, ev95: 5.3, xMins: 82, eo: 11.8 },
-      { name: "semenyo", position: "MID", ev: 4.7, ev95: 4.7, xMins: 95, eo: 64.4 },
-      { name: "haaland", position: "FWD", ev: 6.1, ev95: 6.6, xMins: 87, eo: 70.2 },
-      { name: "gulu", position: "FWD", ev: 0.7, ev95: 5.2, xMins: 9, eo: 6.9 },
-      { name: "barnes", position: "FWD", ev: 0, ev95: 3.8, xMins: 0, eo: 1.3 },
+      { name: "raya", position: "GK", ev: 4.4, ev95: 4.4, xMins: 95 },
+      { name: "dubravka", position: "GK", ev: 3.3, ev95: 3.3, xMins: 93 },
+      { name: "tarkowski", position: "DEF", ev: 4.7, ev95: 4.7, xMins: 95 },
+      { name: "andersen", position: "DEF", ev: 4, ev95: 4.2, xMins: 91 },
+      { name: "gvardiol", position: "DEF", ev: 3.5, ev95: 3.8, xMins: 86 },
+      { name: "gabriel", position: "DEF", ev: 5.4, ev95: 5.4, xMins: 95 },
+      { name: "senesi", position: "DEF", ev: 3.6, ev95: 3.8, xMins: 87 },
+      { name: "enzo", position: "MID", ev: 5.8, ev95: 6.1, xMins: 88 },
+      { name: "saka", position: "MID", ev: 5.7, ev95: 6.4, xMins: 84 },
+      { name: "bruno", position: "MID", ev: 5.5, ev95: 5.8, xMins: 89 },
+      { name: "ndiaye", position: "MID", ev: 4.7, ev95: 5.3, xMins: 82 },
+      { name: "semenyo", position: "MID", ev: 4.7, ev95: 4.7, xMins: 95 },
+      { name: "haaland", position: "FWD", ev: 6.1, ev95: 6.6, xMins: 87 },
+      { name: "gulu", position: "FWD", ev: 0.7, ev95: 5.2, xMins: 9 },
+      { name: "barnes", position: "FWD", ev: 0, ev95: 3.8, xMins: 0 },
     ]);
   };
 
@@ -222,7 +221,7 @@ export default function EVOptimizerPage() {
         <CardContent>
           <div className="space-y-3">
             {players.map((player, index) => (
-              <div key={index} className="grid grid-cols-7 gap-2 items-end">
+              <div key={index} className="grid grid-cols-6 gap-2 items-end">
                 <div className="col-span-2">
                   {index === 0 && <Label className="text-xs mb-1 block">Name</Label>}
                   <Input
@@ -275,16 +274,6 @@ export default function EVOptimizerPage() {
                     placeholder="xMins"
                     value={player.xMins || ""}
                     onChange={(e) => updatePlayer(index, "xMins", e.target.value)}
-                  />
-                </div>
-                <div>
-                  {index === 0 && <Label className="text-xs mb-1 block">EO%</Label>}
-                  <Input
-                    type="number"
-                    step="0.1"
-                    placeholder="EO%"
-                    value={player.eo || ""}
-                    onChange={(e) => updatePlayer(index, "eo", e.target.value)}
                   />
                 </div>
               </div>
@@ -372,7 +361,7 @@ export default function EVOptimizerPage() {
                               EV: {player.ev.toFixed(1)}
                             </span>
                             <span className="text-muted-foreground">
-                              EO: {player.eo.toFixed(1)}%
+                              xMins: {player.xMins}
                             </span>
                             <span className="font-medium text-green-400">
                               Adj EV: {player.raev.toFixed(2)}
@@ -418,7 +407,7 @@ export default function EVOptimizerPage() {
                           EV: {player.ev.toFixed(1)}
                         </span>
                         <span className="text-muted-foreground">
-                          EO: {player.eo.toFixed(1)}%
+                          xMins: {player.xMins}
                         </span>
                         <span className="text-muted-foreground">
                           Adj EV: {player.raev.toFixed(2)}
