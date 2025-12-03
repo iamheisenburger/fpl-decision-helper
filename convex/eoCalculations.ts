@@ -6,12 +6,15 @@
 /**
  * Step 1: Calculate near-rank multiplier based on current rank
  * Elite managers have different ownership patterns than overall base
+ *
+ * Calibrated based on GW14 real-world testing:
+ * - Haaland (72.2% ownership, fixture 2/5) at rank 342K → 180.2% captain EO
  */
 export function calculateNearRankMultiplier(rank: number): number {
-  if (rank <= 10000) return 1.35;     // Top 0.09%
-  if (rank <= 100000) return 1.3;     // Top 0.93%
-  if (rank <= 500000) return 1.25;    // Top 4.63%
-  if (rank <= 1000000) return 1.15;   // Top 9.26%
+  if (rank <= 10000) return 1.40;     // Top 0.09% (most elite)
+  if (rank <= 100000) return 1.35;    // Top 0.93%
+  if (rank <= 500000) return 1.35;    // Top 4.63% (INCREASED from 1.25x)
+  if (rank <= 1000000) return 1.20;   // Top 9.26%
   return 1.1;                          // Everyone else
 }
 
@@ -26,19 +29,23 @@ export function calculateRankPercentage(rank: number): number {
 
 /**
  * Step 2: Calculate captain probability based on ownership tier and fixture difficulty
+ *
+ * Calibrated based on GW14 real-world testing:
+ * - Template players are captained more often than previously estimated
+ * - Increased template base rate from 80% to 90%
  */
 export function calculateCaptainProbability(
   ownership: number,
   fixtureDifficulty: number
 ): number {
-  // Base rates by ownership tier
+  // Base rates by ownership tier (INCREASED template from 80% to 90%)
   let baseRate: number;
   if (ownership >= 70) {
-    baseRate = 80; // Template players
+    baseRate = 90; // Template players (e.g., Haaland, Salah)
   } else if (ownership >= 40) {
-    baseRate = 50; // Popular options
+    baseRate = 55; // Popular options (slightly increased)
   } else {
-    baseRate = 20; // Differentials
+    baseRate = 25; // Differentials (slightly increased)
   }
 
   // Fixture difficulty adjustments (1=hardest, 5=easiest)

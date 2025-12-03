@@ -110,6 +110,7 @@ export const optimizeXI = query({
         },
         {
           xiEoRate: settings.xiEoRate,
+          xiEoThreshold: settings.xiEoThreshold ?? 20,
         }
       );
 
@@ -244,8 +245,14 @@ export const optimizeXI = query({
       }
     }
 
-    // Calculate XI bleed (EV lost vs pure EV optimization)
-    const pureEVXI = playersWithRAEV.sort((a, b) => b.ev - a.ev).slice(0, 11);
+    // Calculate XI bleed (EV lost vs pure EV optimization with same formation constraints)
+    // Build pure EV XI using the same formation as the RAEV XI
+    const pureEVXI: PlayerWithRAEV[] = [
+      ...gks.slice(0, bestFormation.gk),
+      ...defs.sort((a, b) => b.ev - a.ev).slice(0, bestFormation.def),
+      ...mids.sort((a, b) => b.ev - a.ev).slice(0, bestFormation.mid),
+      ...fwds.sort((a, b) => b.ev - a.ev).slice(0, bestFormation.fwd),
+    ];
     const pureEVTotal = pureEVXI.reduce((sum, p) => sum + p.ev, 0);
     const actualEVTotal = bestXI.reduce((sum, p) => sum + p.ev, 0);
     const xiBleed = Math.max(0, pureEVTotal - actualEVTotal);

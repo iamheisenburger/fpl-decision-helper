@@ -53,13 +53,13 @@ export default defineSchema({
   // User settings - stores risk profile and preferences
   userSettings: defineTable({
     // Captaincy settings
-    captaincyEoRate: v.number(), // default: 0.1 EV per 10% EO
-    captaincyEoCap: v.number(), // default: 1.0 EV
+    captaincyEoRate: v.number(), // default: 0.1 EV per threshold% EO
+    captaincyEoCap: v.number(), // DEPRECATED - no longer used
     captaincyEoThreshold: v.optional(v.number()), // default: 12 (0.1 EV per 12% captain EO)
 
     // XI settings
-    xiEoRate: v.number(), // default: 0.1 EV per 15% EO
-    xiEoCap: v.number(), // default: 1.0 EV
+    xiEoRate: v.number(), // default: 0.1 EV per threshold% EO
+    xiEoCap: v.number(), // DEPRECATED - no longer used
     xiEoThreshold: v.optional(v.number()), // default: 20 (0.1 EV per 20% near-rank EO)
 
     // xMins penalty settings

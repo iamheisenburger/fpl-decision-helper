@@ -10,10 +10,10 @@ export const getSettings = query({
     if (!settings) {
       return {
         captaincyEoRate: 0.1,
-        captaincyEoCap: 1.0,
+        captaincyEoCap: 1.0, // DEPRECATED - kept for backward compatibility
         captaincyEoThreshold: 12,
         xiEoRate: 0.1,
-        xiEoCap: 1.0,
+        xiEoCap: 1.0, // DEPRECATED - kept for backward compatibility
         xiEoThreshold: 20,
         xMinsThreshold: 70,
         xMinsPenalty: 0.3,

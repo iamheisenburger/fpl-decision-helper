@@ -23,9 +23,9 @@ function calculateP90(xMins: number): number {
   return 0.0;
 }
 
-// Variance penalty - increases as player strays from 95 xMins
+// Variance penalty - non-linear formula to reflect diminishing marginal risk
 function calculateVariancePenalty(xMins: number): number {
-  return (95 - xMins) / 100;
+  return Math.pow((95 - xMins) / 100, 1.5);
 }
 
 // Calculate Total Score: EV + ceiling bonus + EO shield - variance penalty
@@ -33,12 +33,22 @@ function calculateTotalScore(
   player: { ev: number; ev95: number; xMins: number; captainEO: number },
   eoRate: number,
   eoThreshold: number
-): number {
+): {
+  totalScore: number;
+  ceilingBonus: number;
+  eoShield: number;
+  variancePenalty: number;
+} {
   const p90 = calculateP90(player.xMins);
   const ceilingBonus = (player.ev95 - player.ev) * p90;
   const eoShield = (player.captainEO / eoThreshold) * eoRate;
   const variancePenalty = calculateVariancePenalty(player.xMins);
-  return player.ev + ceilingBonus + eoShield - variancePenalty;
+  return {
+    totalScore: player.ev + ceilingBonus + eoShield - variancePenalty,
+    ceilingBonus,
+    eoShield,
+    variancePenalty,
+  };
 }
 
 export default function CaptainPage() {
@@ -47,7 +57,6 @@ export default function CaptainPage() {
   // Default settings fallback
   const settings = settingsData || {
     captaincyEoRate: 0.1,
-    captaincyEoCap: 1.0,
     captaincyEoThreshold: 12,
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
@@ -125,14 +134,14 @@ export default function CaptainPage() {
     const highEO = isP1HighEO ? p1 : p2;
     const alt = isP1HighEO ? p2 : p1;
 
-    // Calculate Total Scores using new threshold (0.1 EV per 16% captain EO)
-    const highEOTotalScore = calculateTotalScore(highEO, settings.captaincyEoRate, settings.captaincyEoThreshold);
-    const altTotalScore = calculateTotalScore(alt, settings.captaincyEoRate, settings.captaincyEoThreshold);
+    // Calculate Total Scores using threshold settings
+    const highEOResult = calculateTotalScore(highEO, settings.captaincyEoRate, settings.captaincyEoThreshold);
+    const altResult = calculateTotalScore(alt, settings.captaincyEoRate, settings.captaincyEoThreshold);
 
     // Decision: Pick player with highest Total Score (EO protection already baked in)
-    const recommendedPlayer = highEOTotalScore >= altTotalScore ? highEO : alt;
-    const winningScore = Math.max(highEOTotalScore, altTotalScore);
-    const losingScore = Math.min(highEOTotalScore, altTotalScore);
+    const recommendedPlayer = highEOResult.totalScore >= altResult.totalScore ? highEO : alt;
+    const winningScore = Math.max(highEOResult.totalScore, altResult.totalScore);
+    const losingScore = Math.min(highEOResult.totalScore, altResult.totalScore);
     const scoreGap = winningScore - losingScore;
 
     // Calculate EO gap for display
@@ -142,14 +151,6 @@ export default function CaptainPage() {
     const p90HighEO = calculateP90(highEO.xMins);
     const p90Alt = calculateP90(alt.xMins);
 
-    // Calculate ceiling bonuses for display
-    const highEOCeilingBonus = (highEO.ev95 - highEO.ev) * p90HighEO;
-    const altCeilingBonus = (alt.ev95 - alt.ev) * p90Alt;
-
-    // Calculate EO shields for display
-    const highEOEoShield = (highEO.captainEO / settings.captaincyEoThreshold) * settings.captaincyEoRate;
-    const altEoShield = (alt.captainEO / settings.captaincyEoThreshold) * settings.captaincyEoRate;
-
     // Reasoning
     const reasoning = `${recommendedPlayer.name} has the highest Total Score (${winningScore.toFixed(2)}) with EO protection baked in`;
 
@@ -158,8 +159,22 @@ export default function CaptainPage() {
       winningScore,
       losingScore,
       scoreGap,
-      highEOPlayer: { ...highEO, p90: p90HighEO, totalScore: highEOTotalScore, ceilingBonus: highEOCeilingBonus, eoShield: highEOEoShield },
-      altPlayer: { ...alt, p90: p90Alt, totalScore: altTotalScore, ceilingBonus: altCeilingBonus, eoShield: altEoShield },
+      highEOPlayer: {
+        ...highEO,
+        p90: p90HighEO,
+        totalScore: highEOResult.totalScore,
+        ceilingBonus: highEOResult.ceilingBonus,
+        eoShield: highEOResult.eoShield,
+        variancePenalty: highEOResult.variancePenalty
+      },
+      altPlayer: {
+        ...alt,
+        p90: p90Alt,
+        totalScore: altResult.totalScore,
+        ceilingBonus: altResult.ceilingBonus,
+        eoShield: altResult.eoShield,
+        variancePenalty: altResult.variancePenalty
+      },
       eoGap,
       reasoning,
     });
@@ -525,7 +540,11 @@ export default function CaptainPage() {
                         <span className="text-muted-foreground">EO Shield:</span>
                         <span className="text-green-400">+{analysis.highEOPlayer.eoShield.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between font-medium">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Variance Penalty:</span>
+                        <span className="text-red-400">-{analysis.highEOPlayer.variancePenalty.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-medium border-t border-border pt-1 mt-1">
                         <span>Total:</span>
                         <span>{analysis.highEOPlayer.totalScore.toFixed(2)}</span>
                       </div>
@@ -549,7 +568,11 @@ export default function CaptainPage() {
                         <span className="text-muted-foreground">EO Shield:</span>
                         <span className="text-green-400">+{analysis.altPlayer.eoShield.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between font-medium">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Variance Penalty:</span>
+                        <span className="text-red-400">-{analysis.altPlayer.variancePenalty.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-medium border-t border-border pt-1 mt-1">
                         <span>Total:</span>
                         <span>{analysis.altPlayer.totalScore.toFixed(2)}</span>
                       </div>
