@@ -92,7 +92,7 @@ export default function XIPage() {
   // Default settings fallback
   const settings = settingsData || {
     xiEoRate: 0.1,
-    xiEoThreshold: 25,
+    xiEoThreshold: 20,
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
     weeklyBleedBudget: 0.8,

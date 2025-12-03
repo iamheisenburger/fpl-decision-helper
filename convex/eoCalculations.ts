@@ -8,9 +8,9 @@
  * Elite managers have different ownership patterns than overall base
  */
 export function calculateNearRankMultiplier(rank: number): number {
-  if (rank <= 10000) return 1.3;      // Top 0.09%
-  if (rank <= 100000) return 1.25;    // Top 0.93%
-  if (rank <= 500000) return 1.2;     // Top 4.63%
+  if (rank <= 10000) return 1.35;     // Top 0.09%
+  if (rank <= 100000) return 1.3;     // Top 0.93%
+  if (rank <= 500000) return 1.25;    // Top 4.63%
   if (rank <= 1000000) return 1.15;   // Top 9.26%
   return 1.1;                          // Everyone else
 }
@@ -45,7 +45,7 @@ export function calculateCaptainProbability(
   let adjustment: number;
   switch (fixtureDifficulty) {
     case 5:
-      adjustment = 15;
+      adjustment = 10;
       break;
     case 4:
       adjustment = 5;
@@ -54,10 +54,10 @@ export function calculateCaptainProbability(
       adjustment = 0;
       break;
     case 2:
-      adjustment = -20;
+      adjustment = -10;
       break;
     case 1:
-      adjustment = -40;
+      adjustment = -20;
       break;
     default:
       adjustment = 0;

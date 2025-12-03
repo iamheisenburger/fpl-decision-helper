@@ -48,7 +48,7 @@ export default function CaptainPage() {
   const settings = settingsData || {
     captaincyEoRate: 0.1,
     captaincyEoCap: 1.0,
-    captaincyEoThreshold: 16,
+    captaincyEoThreshold: 12,
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
     weeklyBleedBudget: 0.8,
