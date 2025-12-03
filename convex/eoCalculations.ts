@@ -31,21 +31,21 @@ export function calculateRankPercentage(rank: number): number {
  * Step 2: Calculate captain probability based on ownership tier and fixture difficulty
  *
  * Calibrated based on GW14 real-world testing:
- * - Template players are captained more often than previously estimated
- * - Increased template base rate from 80% to 90%
+ * - Haaland (72% ownership) → 180.2% captain EO at rank 342K
+ * - Bruno (18% ownership) → 29.7% captain EO at rank 342K
  */
 export function calculateCaptainProbability(
   ownership: number,
   fixtureDifficulty: number
 ): number {
-  // Base rates by ownership tier (INCREASED template from 80% to 90%)
+  // Base rates by ownership tier (thresholds adjusted to match real captain behavior)
   let baseRate: number;
-  if (ownership >= 70) {
-    baseRate = 90; // Template players (e.g., Haaland, Salah)
-  } else if (ownership >= 40) {
-    baseRate = 55; // Popular options (slightly increased)
+  if (ownership >= 60) {
+    baseRate = 90; // Template players (e.g., Haaland 72%, Salah 60%+)
+  } else if (ownership >= 15) {
+    baseRate = 50; // Popular options (e.g., Bruno 18%, premium assets)
   } else {
-    baseRate = 25; // Differentials (slightly increased)
+    baseRate = 20; // True differentials (<15% ownership)
   }
 
   // Fixture difficulty adjustments (1=hardest, 5=easiest)
