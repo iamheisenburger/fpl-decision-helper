@@ -23,9 +23,9 @@ function calculateP90(xMins: number): number {
   return 0.0;
 }
 
-// Variance penalty - non-linear formula to reflect diminishing marginal risk
+// Variance penalty - linear formula reflecting real rotation/sub risk
 function calculateVariancePenalty(xMins: number): number {
-  return Math.pow((95 - xMins) / 100, 1.5);
+  return (95 - xMins) / 100;
 }
 
 // Calculate Total Score: EV + ceiling bonus + EO shield - variance penalty

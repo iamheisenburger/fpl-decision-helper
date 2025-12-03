@@ -38,20 +38,20 @@ export function calculateP90(xMins: number): number {
  * @param xMins - Expected minutes
  * @returns Variance penalty in EV units
  *
- * Formula: ((95 - xMins) / 100)^1.5
+ * Formula: (95 - xMins) / 100
  *
- * Rationale: Non-linear penalty that reflects diminishing marginal risk.
- * The difference between 90-95 xMins is negligible, but 70-75 is significant.
- * Power of 1.5 creates an appropriate curve:
- * - 95 xMins: 0.00 penalty
- * - 90 xMins: 0.01 penalty (was 0.05 with linear)
- * - 85 xMins: 0.03 penalty (was 0.10 with linear)
- * - 80 xMins: 0.06 penalty (was 0.15 with linear)
- * - 75 xMins: 0.09 penalty (was 0.20 with linear)
- * - 70 xMins: 0.13 penalty (was 0.25 with linear)
+ * Rationale: Linear penalty reflecting real rotation/substitution risk.
+ * If a player averages 80 xMins, they're regularly subbed or rotated - that's meaningful risk.
+ * - 95 xMins: 0.00 penalty (nailed on for 90 mins)
+ * - 90 xMins: 0.05 penalty (slight sub risk)
+ * - 87 xMins: 0.08 penalty (regular late sub)
+ * - 85 xMins: 0.10 penalty (regularly subbed ~85th min)
+ * - 80 xMins: 0.15 penalty (heavy rotation/sub risk)
+ * - 75 xMins: 0.20 penalty (major uncertainty)
+ * - 70 xMins: 0.25 penalty (significant risk)
  */
 export function calculateVariancePenalty(xMins: number): number {
-  return Math.pow((95 - xMins) / 100, 1.5);
+  return (95 - xMins) / 100;
 }
 
 /**
