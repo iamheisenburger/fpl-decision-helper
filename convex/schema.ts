@@ -55,10 +55,12 @@ export default defineSchema({
     // Captaincy settings
     captaincyEoRate: v.number(), // default: 0.1 EV per 10% EO
     captaincyEoCap: v.number(), // default: 1.0 EV
+    captaincyEoThreshold: v.optional(v.number()), // default: 16 (0.1 EV per 16% captain EO)
 
     // XI settings
     xiEoRate: v.number(), // default: 0.1 EV per 15% EO
     xiEoCap: v.number(), // default: 1.0 EV
+    xiEoThreshold: v.optional(v.number()), // default: 25 (0.1 EV per 25% near-rank EO)
 
     // xMins penalty settings
     xMinsThreshold: v.number(), // default: 70 minutes

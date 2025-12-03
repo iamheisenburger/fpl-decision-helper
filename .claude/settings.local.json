@@ -30,7 +30,14 @@
       "Bash(npm install:*)",
       "Bash(railway login:*)",
       "Bash(if exist .railway dir /b .railway)",
-      "Bash(gh repo view:*)"
+      "Bash(gh repo view:*)",
+      "Bash(npx convex env set:*)",
+      "Bash(npx convex env:*)",
+      "Bash(npx convex run userSettings:resetSettings)",
+      "Bash(npx convex run:*)",
+      "Bash(node verify_xi_math.js:*)",
+      "Bash(del verify_xi_math.js)",
+      "Bash(node verify_raev.js:*)"
     ],
     "deny": [],
     "ask": []

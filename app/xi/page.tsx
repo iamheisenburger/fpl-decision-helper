@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { calculateNearRankEO, calculateRankPercentage } from "@/convex/eoCalculations";
 
 // P90 confidence thresholds (granular)
 function calculateP90(xMins: number): number {
@@ -33,21 +34,24 @@ function calculateRAEV(
     ev: number;
     ev95: number;
     xMins: number;
-    eo: number;
+    ownership: number;
   },
+  rank: number,
   settings: {
     xiEoRate: number;
+    xiEoThreshold: number;
   }
 ): number {
   const p90 = calculateP90(player.xMins);
 
   // Ceiling bonus: reward EV95 upside weighted by P90
-  // P90 already weights ceiling probability
   const ceilingBonus = (player.ev95 - player.ev) * p90;
 
-  // EO shield: 0.1 EV per 15% EO (applied to ALL players proportionally)
-  // Example: 5.6% EO = (5.6/15) * 0.1 = 0.037, 64.4% EO = (64.4/15) * 0.1 = 0.43
-  const eoShield = (player.eo / 15) * settings.xiEoRate;
+  // Calculate near-rank EO (no captaincy multiplier for XI)
+  const nearRankEO = calculateNearRankEO(player.ownership, rank);
+
+  // EO shield: 0.1 EV per 25% near-rank EO (applied to ALL players proportionally)
+  const eoShield = (nearRankEO / settings.xiEoThreshold) * settings.xiEoRate;
 
   // Variance penalty: uncertainty increases as player strays from 95 xMins
   const variancePenalty = calculateVariancePenalty(player.xMins);
@@ -63,7 +67,8 @@ interface Player {
   ev: number;
   ev95: number;
   xMins: number;
-  eo: number;
+  ownership: number;
+  nearRankEO: number;
   raev: number;
 }
 
@@ -73,11 +78,12 @@ const emptyPlayer = {
   ev: 0,
   ev95: 0,
   xMins: 0,
-  eo: 0,
+  ownership: 0,
 };
 
 export default function XIPage() {
   const settingsData = useQuery(api.userSettings.getSettings);
+  const [rank, setRank] = useState("");
   const [players, setPlayers] = useState<any[]>(
     Array(15).fill(null).map(() => ({ ...emptyPlayer }))
   );
@@ -86,6 +92,7 @@ export default function XIPage() {
   // Default settings fallback
   const settings = settingsData || {
     xiEoRate: 0.1,
+    xiEoThreshold: 25,
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
     weeklyBleedBudget: 0.8,
@@ -98,6 +105,18 @@ export default function XIPage() {
   };
 
   const optimizeXI = () => {
+    // Validate rank
+    if (!rank) {
+      alert("Please enter your current FPL rank");
+      return;
+    }
+
+    const currentRank = parseInt(rank);
+    if (isNaN(currentRank) || currentRank <= 0) {
+      alert("Please enter a valid rank");
+      return;
+    }
+
     // Filter filled players
     const filledPlayers: Player[] = players
       .filter(p => p.name)
@@ -106,13 +125,18 @@ export default function XIPage() {
         ev: parseFloat(p.ev as any) || 0,
         ev95: parseFloat(p.ev95 as any) || 0,
         xMins: parseInt(p.xMins as any) || 0,
-        eo: parseFloat(p.eo as any) || 0,
+        ownership: parseFloat(p.ownership as any) || 0,
+        nearRankEO: 0,
         raev: 0,
       }))
-      .map(p => ({
-        ...p,
-        raev: calculateRAEV(p, settings),
-      }));
+      .map(p => {
+        const nearRankEO = calculateNearRankEO(p.ownership, currentRank);
+        return {
+          ...p,
+          nearRankEO,
+          raev: calculateRAEV(p, currentRank, settings),
+        };
+      });
 
     if (filledPlayers.length < 11) {
       alert("Please enter at least 11 players");
@@ -190,23 +214,26 @@ export default function XIPage() {
   const quickFill = () => {
     // Quick fill with actual user data from screenshot
     setPlayers([
-      { name: "raya", position: "GK", ev: 4.4, ev95: 4.4, xMins: 95, eo: 32.3 },
-      { name: "dubravka", position: "GK", ev: 3.3, ev95: 3.3, xMins: 93, eo: 34.4 },
-      { name: "tarkowski", position: "DEF", ev: 4.7, ev95: 4.7, xMins: 95, eo: 6.1 },
-      { name: "andersen", position: "DEF", ev: 4, ev95: 4.2, xMins: 91, eo: 2.8 },
-      { name: "gvardiol", position: "DEF", ev: 3.5, ev95: 3.8, xMins: 86, eo: 5.1 },
-      { name: "gabriel", position: "DEF", ev: 5.4, ev95: 5.4, xMins: 95, eo: 43.3 },
-      { name: "senesi", position: "DEF", ev: 3.6, ev95: 3.8, xMins: 87, eo: 25.9 },
-      { name: "enzo", position: "MID", ev: 5.8, ev95: 6.1, xMins: 88, eo: 14.9 },
-      { name: "saka", position: "MID", ev: 5.7, ev95: 6.4, xMins: 84, eo: 17.2 },
-      { name: "bruno", position: "MID", ev: 5.5, ev95: 5.8, xMins: 89, eo: 16.2 },
-      { name: "ndiaye", position: "MID", ev: 4.7, ev95: 5.3, xMins: 82, eo: 11.8 },
-      { name: "semenyo", position: "MID", ev: 4.7, ev95: 4.7, xMins: 95, eo: 64.4 },
-      { name: "haaland", position: "FWD", ev: 6.1, ev95: 6.6, xMins: 87, eo: 70.2 },
-      { name: "gulu", position: "FWD", ev: 0.7, ev95: 5.2, xMins: 9, eo: 6.9 },
-      { name: "barnes", position: "FWD", ev: 0, ev95: 3.8, xMins: 0, eo: 1.3 },
+      { name: "raya", position: "GK", ev: 4.4, ev95: 4.4, xMins: 95, ownership: 32.3 },
+      { name: "dubravka", position: "GK", ev: 3.3, ev95: 3.3, xMins: 93, ownership: 34.4 },
+      { name: "tarkowski", position: "DEF", ev: 4.7, ev95: 4.7, xMins: 95, ownership: 6.1 },
+      { name: "andersen", position: "DEF", ev: 4, ev95: 4.2, xMins: 91, ownership: 2.8 },
+      { name: "gvardiol", position: "DEF", ev: 3.5, ev95: 3.8, xMins: 86, ownership: 5.1 },
+      { name: "gabriel", position: "DEF", ev: 5.4, ev95: 5.4, xMins: 95, ownership: 43.3 },
+      { name: "senesi", position: "DEF", ev: 3.6, ev95: 3.8, xMins: 87, ownership: 25.9 },
+      { name: "enzo", position: "MID", ev: 5.8, ev95: 6.1, xMins: 88, ownership: 14.9 },
+      { name: "saka", position: "MID", ev: 5.7, ev95: 6.4, xMins: 84, ownership: 17.2 },
+      { name: "bruno", position: "MID", ev: 5.5, ev95: 5.8, xMins: 89, ownership: 16.2 },
+      { name: "ndiaye", position: "MID", ev: 4.7, ev95: 5.3, xMins: 82, ownership: 11.8 },
+      { name: "semenyo", position: "MID", ev: 4.7, ev95: 4.7, xMins: 95, ownership: 64.4 },
+      { name: "haaland", position: "FWD", ev: 6.1, ev95: 6.6, xMins: 87, ownership: 70.2 },
+      { name: "gulu", position: "FWD", ev: 0.7, ev95: 5.2, xMins: 9, ownership: 6.9 },
+      { name: "barnes", position: "FWD", ev: 0, ev95: 3.8, xMins: 0, ownership: 1.3 },
     ]);
+    setRank("479527");
   };
+
+  const rankPercentage = rank && !isNaN(parseInt(rank)) ? calculateRankPercentage(parseInt(rank)) : null;
 
   return (
     <div className="space-y-8">
@@ -214,11 +241,37 @@ export default function XIPage() {
         <div>
           <h1 className="text-3xl font-bold mb-2">XI Optimizer</h1>
           <p className="text-muted-foreground">
-            Enter 15 players and get your optimized starting XI.
+            Enter 15 players and get your optimized starting XI with dynamic near-rank EO.
           </p>
         </div>
         <Button variant="outline" onClick={quickFill}>Quick Fill (Test Data)</Button>
       </div>
+
+      {/* Rank Input */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Current Rank</CardTitle>
+          <CardDescription>
+            Used to calculate near-rank competitive ownership. Update this weekly as your rank changes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label>FPL Rank</Label>
+            <Input
+              type="number"
+              placeholder="e.g., 479527"
+              value={rank}
+              onChange={(e) => setRank(e.target.value)}
+            />
+            {rankPercentage !== null && (
+              <p className="text-sm text-muted-foreground">
+                Top {rankPercentage.toFixed(2)}% of managers
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Player Input Grid */}
       <Card>
@@ -284,13 +337,13 @@ export default function XIPage() {
                   />
                 </div>
                 <div>
-                  {index === 0 && <Label className="text-xs mb-1 block">EO%</Label>}
+                  {index === 0 && <Label className="text-xs mb-1 block">Ownership %</Label>}
                   <Input
                     type="number"
                     step="0.1"
-                    placeholder="EO%"
-                    value={player.eo || ""}
-                    onChange={(e) => updatePlayer(index, "eo", e.target.value)}
+                    placeholder="Own %"
+                    value={player.ownership || ""}
+                    onChange={(e) => updatePlayer(index, "ownership", e.target.value)}
                   />
                 </div>
               </div>
@@ -378,7 +431,10 @@ export default function XIPage() {
                               EV: {player.ev.toFixed(1)}
                             </span>
                             <span className="text-muted-foreground">
-                              EO: {player.eo.toFixed(1)}%
+                              Own: {player.ownership.toFixed(1)}%
+                            </span>
+                            <span className="text-muted-foreground">
+                              Near-Rank EO: {player.nearRankEO.toFixed(1)}%
                             </span>
                             <span className="font-medium text-green-400">
                               RAEV: {player.raev.toFixed(2)}
@@ -424,7 +480,10 @@ export default function XIPage() {
                           EV: {player.ev.toFixed(1)}
                         </span>
                         <span className="text-muted-foreground">
-                          EO: {player.eo.toFixed(1)}%
+                          Own: {player.ownership.toFixed(1)}%
+                        </span>
+                        <span className="text-muted-foreground">
+                          Near-Rank EO: {player.nearRankEO.toFixed(1)}%
                         </span>
                         <span className="text-muted-foreground">
                           RAEV: {player.raev.toFixed(2)}

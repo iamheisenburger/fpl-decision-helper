@@ -20,6 +20,7 @@ import type * as engines_mlPredictor from "../engines/mlPredictor.js";
 import type * as engines_multiWeekPredictor from "../engines/multiWeekPredictor.js";
 import type * as engines_xMinsHeuristic from "../engines/xMinsHeuristic.js";
 import type * as engines_xiOptimizer from "../engines/xiOptimizer.js";
+import type * as eoCalculations from "../eoCalculations.js";
 import type * as fixtures from "../fixtures.js";
 import type * as gameweekInputs from "../gameweekInputs.js";
 import type * as overrides from "../overrides.js";
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   "engines/multiWeekPredictor": typeof engines_multiWeekPredictor;
   "engines/xMinsHeuristic": typeof engines_xMinsHeuristic;
   "engines/xiOptimizer": typeof engines_xiOptimizer;
+  eoCalculations: typeof eoCalculations;
   fixtures: typeof fixtures;
   gameweekInputs: typeof gameweekInputs;
   overrides: typeof overrides;

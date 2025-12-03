@@ -11,8 +11,10 @@ export const getSettings = query({
       return {
         captaincyEoRate: 0.1,
         captaincyEoCap: 1.0,
+        captaincyEoThreshold: 16,
         xiEoRate: 0.1,
         xiEoCap: 1.0,
+        xiEoThreshold: 25,
         xMinsThreshold: 70,
         xMinsPenalty: 0.3,
         weeklyBleedBudget: 0.8,
@@ -26,7 +28,12 @@ export const getSettings = query({
       };
     }
 
-    return settings;
+    // Fill in defaults for optional fields that may not exist in older documents
+    return {
+      ...settings,
+      captaincyEoThreshold: settings.captaincyEoThreshold ?? 16,
+      xiEoThreshold: settings.xiEoThreshold ?? 25,
+    };
   },
 });
 
@@ -35,8 +42,10 @@ export const upsertSettings = mutation({
   args: {
     captaincyEoRate: v.optional(v.number()),
     captaincyEoCap: v.optional(v.number()),
+    captaincyEoThreshold: v.optional(v.number()),
     xiEoRate: v.optional(v.number()),
     xiEoCap: v.optional(v.number()),
+    xiEoThreshold: v.optional(v.number()),
     xMinsThreshold: v.optional(v.number()),
     xMinsPenalty: v.optional(v.number()),
     weeklyBleedBudget: v.optional(v.number()),
@@ -56,8 +65,10 @@ export const upsertSettings = mutation({
       const updates: any = {};
       if (args.captaincyEoRate !== undefined) updates.captaincyEoRate = args.captaincyEoRate;
       if (args.captaincyEoCap !== undefined) updates.captaincyEoCap = args.captaincyEoCap;
+      if (args.captaincyEoThreshold !== undefined) updates.captaincyEoThreshold = args.captaincyEoThreshold;
       if (args.xiEoRate !== undefined) updates.xiEoRate = args.xiEoRate;
       if (args.xiEoCap !== undefined) updates.xiEoCap = args.xiEoCap;
+      if (args.xiEoThreshold !== undefined) updates.xiEoThreshold = args.xiEoThreshold;
       if (args.xMinsThreshold !== undefined) updates.xMinsThreshold = args.xMinsThreshold;
       if (args.xMinsPenalty !== undefined) updates.xMinsPenalty = args.xMinsPenalty;
       if (args.weeklyBleedBudget !== undefined) updates.weeklyBleedBudget = args.weeklyBleedBudget;
@@ -76,8 +87,10 @@ export const upsertSettings = mutation({
       return await ctx.db.insert("userSettings", {
         captaincyEoRate: args.captaincyEoRate ?? 0.1,
         captaincyEoCap: args.captaincyEoCap ?? 1.0,
+        captaincyEoThreshold: args.captaincyEoThreshold ?? 16,
         xiEoRate: args.xiEoRate ?? 0.1,
         xiEoCap: args.xiEoCap ?? 1.0,
+        xiEoThreshold: args.xiEoThreshold ?? 25,
         xMinsThreshold: args.xMinsThreshold ?? 70,
         xMinsPenalty: args.xMinsPenalty ?? 0.3,
         weeklyBleedBudget: args.weeklyBleedBudget ?? 0.8,
@@ -101,8 +114,10 @@ export const resetSettings = mutation({
     const defaults = {
       captaincyEoRate: 0.1,
       captaincyEoCap: 1.0,
+      captaincyEoThreshold: 16,
       xiEoRate: 0.1,
       xiEoCap: 1.0,
+      xiEoThreshold: 25,
       xMinsThreshold: 70,
       xMinsPenalty: 0.3,
       weeklyBleedBudget: 0.8,

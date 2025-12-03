@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { calculateCaptainEO, calculateRankPercentage } from "@/convex/eoCalculations";
 
 // P90 confidence thresholds (granular)
 function calculateP90(xMins: number): number {
@@ -28,10 +29,14 @@ function calculateVariancePenalty(xMins: number): number {
 }
 
 // Calculate Total Score: EV + ceiling bonus + EO shield - variance penalty
-function calculateTotalScore(player: { ev: number; ev95: number; xMins: number; eo: number }, eoRate: number): number {
+function calculateTotalScore(
+  player: { ev: number; ev95: number; xMins: number; captainEO: number },
+  eoRate: number,
+  eoThreshold: number
+): number {
   const p90 = calculateP90(player.xMins);
   const ceilingBonus = (player.ev95 - player.ev) * p90;
-  const eoShield = (player.eo / 10) * eoRate;
+  const eoShield = (player.captainEO / eoThreshold) * eoRate;
   const variancePenalty = calculateVariancePenalty(player.xMins);
   return player.ev + ceilingBonus + eoShield - variancePenalty;
 }
@@ -43,16 +48,21 @@ export default function CaptainPage() {
   const settings = settingsData || {
     captaincyEoRate: 0.1,
     captaincyEoCap: 1.0,
+    captaincyEoThreshold: 16,
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
     weeklyBleedBudget: 0.8,
   };
+
+  const [rank, setRank] = useState("");
+
   const [player1, setPlayer1] = useState({
     name: "",
     ev: "",
     ev95: "",
     xMins: "",
-    eo: "",
+    ownership: "",
+    fixtureDifficulty: 3,
   });
 
   const [player2, setPlayer2] = useState({
@@ -60,7 +70,8 @@ export default function CaptainPage() {
     ev: "",
     ev95: "",
     xMins: "",
-    eo: "",
+    ownership: "",
+    fixtureDifficulty: 3,
   });
 
   const [analysis, setAnalysis] = useState<any>(null);
@@ -72,12 +83,31 @@ export default function CaptainPage() {
       return;
     }
 
+    if (!rank) {
+      alert("Please enter your current FPL rank");
+      return;
+    }
+
+    const currentRank = parseInt(rank);
+    if (isNaN(currentRank) || currentRank <= 0) {
+      alert("Please enter a valid rank");
+      return;
+    }
+
+    // Calculate captain EO for each player
+    const p1Ownership = parseFloat(player1.ownership) || 0;
+    const p2Ownership = parseFloat(player2.ownership) || 0;
+    const p1CaptainEO = calculateCaptainEO(p1Ownership, currentRank, player1.fixtureDifficulty);
+    const p2CaptainEO = calculateCaptainEO(p2Ownership, currentRank, player2.fixtureDifficulty);
+
     const p1 = {
       name: player1.name,
       ev: parseFloat(player1.ev) || 0,
       ev95: parseFloat(player1.ev95) || 0,
       xMins: parseInt(player1.xMins) || 0,
-      eo: parseFloat(player1.eo) || 0,
+      ownership: p1Ownership,
+      fixtureDifficulty: player1.fixtureDifficulty,
+      captainEO: p1CaptainEO,
     };
 
     const p2 = {
@@ -85,17 +115,19 @@ export default function CaptainPage() {
       ev: parseFloat(player2.ev) || 0,
       ev95: parseFloat(player2.ev95) || 0,
       xMins: parseInt(player2.xMins) || 0,
-      eo: parseFloat(player2.eo) || 0,
+      ownership: p2Ownership,
+      fixtureDifficulty: player2.fixtureDifficulty,
+      captainEO: p2CaptainEO,
     };
 
     // Identify high-EO player
-    const isP1HighEO = p1.eo >= p2.eo;
+    const isP1HighEO = p1.captainEO >= p2.captainEO;
     const highEO = isP1HighEO ? p1 : p2;
     const alt = isP1HighEO ? p2 : p1;
 
-    // Calculate Total Scores independently (includes EO shield at 0.1 EV per 10% EO)
-    const highEOTotalScore = calculateTotalScore(highEO, settings.captaincyEoRate);
-    const altTotalScore = calculateTotalScore(alt, settings.captaincyEoRate);
+    // Calculate Total Scores using new threshold (0.1 EV per 16% captain EO)
+    const highEOTotalScore = calculateTotalScore(highEO, settings.captaincyEoRate, settings.captaincyEoThreshold);
+    const altTotalScore = calculateTotalScore(alt, settings.captaincyEoRate, settings.captaincyEoThreshold);
 
     // Decision: Pick player with highest Total Score (EO protection already baked in)
     const recommendedPlayer = highEOTotalScore >= altTotalScore ? highEO : alt;
@@ -104,7 +136,7 @@ export default function CaptainPage() {
     const scoreGap = winningScore - losingScore;
 
     // Calculate EO gap for display
-    const eoGap = Math.abs(highEO.eo - alt.eo);
+    const eoGap = Math.abs(highEO.captainEO - alt.captainEO);
 
     // P90 values for display
     const p90HighEO = calculateP90(highEO.xMins);
@@ -115,8 +147,8 @@ export default function CaptainPage() {
     const altCeilingBonus = (alt.ev95 - alt.ev) * p90Alt;
 
     // Calculate EO shields for display
-    const highEOEoShield = (highEO.eo / 10) * settings.captaincyEoRate;
-    const altEoShield = (alt.eo / 10) * settings.captaincyEoRate;
+    const highEOEoShield = (highEO.captainEO / settings.captaincyEoThreshold) * settings.captaincyEoRate;
+    const altEoShield = (alt.captainEO / settings.captaincyEoThreshold) * settings.captaincyEoRate;
 
     // Reasoning
     const reasoning = `${recommendedPlayer.name} has the highest Total Score (${winningScore.toFixed(2)}) with EO protection baked in`;
@@ -133,14 +165,42 @@ export default function CaptainPage() {
     });
   };
 
+  const rankPercentage = rank && !isNaN(parseInt(rank)) ? calculateRankPercentage(parseInt(rank)) : null;
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold mb-2">Captain Decision</h1>
         <p className="text-muted-foreground">
-          Enter stats for 2 captain options and get instant recommendation.
+          Enter stats for 2 captain options and get instant recommendation with dynamic EO calculation.
         </p>
       </div>
+
+      {/* Rank Input */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Current Rank</CardTitle>
+          <CardDescription>
+            Used to calculate near-rank competitive ownership. Update this weekly as your rank changes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <Label>FPL Rank</Label>
+            <Input
+              type="number"
+              placeholder="e.g., 479527"
+              value={rank}
+              onChange={(e) => setRank(e.target.value)}
+            />
+            {rankPercentage !== null && (
+              <p className="text-sm text-muted-foreground">
+                Top {rankPercentage.toFixed(2)}% of managers
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Input Form */}
       <div className="grid md:grid-cols-2 gap-6">
@@ -190,14 +250,30 @@ export default function CaptainPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>EO%</Label>
+                <Label>Overall Ownership %</Label>
                 <Input
                   type="number"
                   step="0.1"
-                  placeholder="68.5"
-                  value={player1.eo}
-                  onChange={(e) => setPlayer1({ ...player1, eo: e.target.value })}
+                  placeholder="72.5"
+                  value={player1.ownership}
+                  onChange={(e) => setPlayer1({ ...player1, ownership: e.target.value })}
                 />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Fixture Difficulty (1=hardest, 5=easiest)</Label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((diff) => (
+                  <Button
+                    key={diff}
+                    type="button"
+                    variant={player1.fixtureDifficulty === diff ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => setPlayer1({ ...player1, fixtureDifficulty: diff })}
+                  >
+                    {diff}
+                  </Button>
+                ))}
               </div>
             </div>
           </CardContent>
@@ -249,14 +325,30 @@ export default function CaptainPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>EO%</Label>
+                <Label>Overall Ownership %</Label>
                 <Input
                   type="number"
                   step="0.1"
-                  placeholder="16.8"
-                  value={player2.eo}
-                  onChange={(e) => setPlayer2({ ...player2, eo: e.target.value })}
+                  placeholder="35.2"
+                  value={player2.ownership}
+                  onChange={(e) => setPlayer2({ ...player2, ownership: e.target.value })}
                 />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Fixture Difficulty (1=hardest, 5=easiest)</Label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((diff) => (
+                  <Button
+                    key={diff}
+                    type="button"
+                    variant={player2.fixtureDifficulty === diff ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => setPlayer2({ ...player2, fixtureDifficulty: diff })}
+                  >
+                    {diff}
+                  </Button>
+                ))}
               </div>
             </div>
           </CardContent>
@@ -306,7 +398,7 @@ export default function CaptainPage() {
                 <div className="space-y-4">
                   <div>
                     <h3 className="font-semibold mb-2 text-green-400">
-                      High-EO: {analysis.highEOPlayer.name}
+                      High Captain-EO: {analysis.highEOPlayer.name}
                     </h3>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
@@ -328,9 +420,21 @@ export default function CaptainPage() {
                         </span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">EO:</span>{" "}
+                        <span className="text-muted-foreground">Ownership:</span>{" "}
                         <span className="font-medium">
-                          {analysis.highEOPlayer.eo.toFixed(1)}%
+                          {analysis.highEOPlayer.ownership.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Captain EO:</span>{" "}
+                        <span className="font-medium">
+                          {analysis.highEOPlayer.captainEO.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Fixture:</span>{" "}
+                        <span className="font-medium">
+                          {analysis.highEOPlayer.fixtureDifficulty}/5
                         </span>
                       </div>
                       <div>
@@ -368,9 +472,21 @@ export default function CaptainPage() {
                         </span>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">EO:</span>{" "}
+                        <span className="text-muted-foreground">Ownership:</span>{" "}
                         <span className="font-medium">
-                          {analysis.altPlayer.eo.toFixed(1)}%
+                          {analysis.altPlayer.ownership.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Captain EO:</span>{" "}
+                        <span className="font-medium">
+                          {analysis.altPlayer.captainEO.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Fixture:</span>{" "}
+                        <span className="font-medium">
+                          {analysis.altPlayer.fixtureDifficulty}/5
                         </span>
                       </div>
                       <div>
@@ -447,7 +563,7 @@ export default function CaptainPage() {
                     <span>{analysis.scoreGap.toFixed(2)} EV</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">EO Gap:</span>
+                    <span className="text-muted-foreground">Captain EO Gap:</span>
                     <span className="font-medium">
                       {analysis.eoGap.toFixed(1)}%
                     </span>
