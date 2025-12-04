@@ -58,7 +58,7 @@ export function calculateVariancePenalty(xMins: number): number {
  * Calculate Total Score for captaincy decisions
  * @param player - Player with EV, EV95, xMins, EO
  * @param eoRate - EV per threshold% EO (default: 0.1 for captaincy)
- * @param eoThreshold - Threshold for EO shield (default: 12 for captaincy)
+ * @param eoThreshold - Threshold for EO shield (default: 15 for captaincy - balanced for EV competition)
  * @returns Total score (EV + ceiling bonus + EO shield - variance penalty)
  *
  * Formula: EV + (EV95 - EV) × P90 + (EO/threshold × eoRate) - variancePenalty
@@ -72,7 +72,7 @@ export function calculateTotalScore(
     eo: number;
   },
   eoRate: number = 0.1,
-  eoThreshold: number = 12
+  eoThreshold: number = 15
 ): number {
   const p90 = calculateP90(player.xMins);
   const ceilingBonus = (player.ev95 - player.ev) * p90;

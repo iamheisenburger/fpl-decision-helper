@@ -57,7 +57,7 @@ export default function CaptainPage() {
   // Default settings fallback
   const settings = settingsData || {
     captaincyEoRate: 0.1,
-    captaincyEoThreshold: 12,
+    captaincyEoThreshold: 15, // Balanced for EV competition
     xMinsThreshold: 70,
     xMinsPenalty: 0.3,
     weeklyBleedBudget: 0.8,

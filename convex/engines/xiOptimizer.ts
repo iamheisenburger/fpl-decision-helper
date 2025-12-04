@@ -110,7 +110,7 @@ export const optimizeXI = query({
         },
         {
           xiEoRate: settings.xiEoRate,
-          xiEoThreshold: settings.xiEoThreshold ?? 20,
+          xiEoThreshold: settings.xiEoThreshold ?? 25,
         }
       );
 

@@ -11,10 +11,10 @@ export const getSettings = query({
       return {
         captaincyEoRate: 0.1,
         captaincyEoCap: 1.0, // DEPRECATED - kept for backward compatibility
-        captaincyEoThreshold: 12,
+        captaincyEoThreshold: 15, // Balanced: 0.1 EV per 15% captain EO (loosened from 12% for EV competition)
         xiEoRate: 0.1,
         xiEoCap: 1.0, // DEPRECATED - kept for backward compatibility
-        xiEoThreshold: 20,
+        xiEoThreshold: 25, // Balanced: 0.1 EV per 25% near-rank EO (loosened from 20% for EV competition)
         xMinsThreshold: 70,
         xMinsPenalty: 0.3,
         weeklyBleedBudget: 0.8,
@@ -87,10 +87,10 @@ export const upsertSettings = mutation({
       return await ctx.db.insert("userSettings", {
         captaincyEoRate: args.captaincyEoRate ?? 0.1,
         captaincyEoCap: args.captaincyEoCap ?? 1.0,
-        captaincyEoThreshold: args.captaincyEoThreshold ?? 12,
+        captaincyEoThreshold: args.captaincyEoThreshold ?? 15,
         xiEoRate: args.xiEoRate ?? 0.1,
         xiEoCap: args.xiEoCap ?? 1.0,
-        xiEoThreshold: args.xiEoThreshold ?? 20,
+        xiEoThreshold: args.xiEoThreshold ?? 25,
         xMinsThreshold: args.xMinsThreshold ?? 70,
         xMinsPenalty: args.xMinsPenalty ?? 0.3,
         weeklyBleedBudget: args.weeklyBleedBudget ?? 0.8,
@@ -114,10 +114,10 @@ export const resetSettings = mutation({
     const defaults = {
       captaincyEoRate: 0.1,
       captaincyEoCap: 1.0,
-      captaincyEoThreshold: 12,
+      captaincyEoThreshold: 15, // Balanced for EV competition
       xiEoRate: 0.1,
       xiEoCap: 1.0,
-      xiEoThreshold: 20,
+      xiEoThreshold: 25, // Balanced for EV competition
       xMinsThreshold: 70,
       xMinsPenalty: 0.3,
       weeklyBleedBudget: 0.8,
