@@ -9,21 +9,19 @@
  * Calculate base captain probability using sigmoid function
  * Provides smooth, continuous scaling without discrete tier cliff effects
  *
- * @param ownership - Overall ownership percentage (0-100)
- * @returns Base captain probability percentage (10-95%)
+ * Calibrated against GW14 real-world data:
+ * - Haaland 74.2% ownership → ~180% captain EO (needs ~87% captain prob)
+ * - Cunha 10.8% ownership → ~12-15% captain EO (needs ~40-45% captain prob)
  *
- * Expected outputs:
- * - 10% ownership → ~25%
- * - 18% ownership → ~35%
- * - 50% ownership → ~75%
- * - 74% ownership → ~90%
+ * @param ownership - Overall ownership percentage (0-100)
+ * @returns Base captain probability percentage (20-92%)
  */
 function calculateBaseCaptainProbability(ownership: number): number {
-  const floor = 10;        // Minimum 10% for any player
-  const ceiling = 95;      // Maximum 95% (cap)
+  const floor = 20;        // Minimum 20% - even differentials get some captaincy
+  const ceiling = 92;      // Maximum 92% - even templates aren't 100% captained
   const range = ceiling - floor;
-  const midpoint = 32;     // Ownership where prob = ~52%
-  const steepness = 16;    // Controls curve width
+  const midpoint = 35;     // Ownership where prob = ~56%
+  const steepness = 20;    // Wider curve for smoother transitions
 
   const sigmoid = 1 / (1 + Math.exp(-(ownership - midpoint) / steepness));
   return floor + range * sigmoid;
@@ -124,10 +122,10 @@ export function calculateRankPercentage(rank: number): number {
  * @param fixtureDifficulty - Fixture difficulty (1-5, where 5 is easiest)
  * @returns Captain EO percentage (can exceed 100% due to captaincy doubling)
  *
- * Expected results (at rank ~350K):
- * - Haaland (74.2%, fixture 5/5) → ~185% captain EO
- * - Bruno (18%, fixture 5/5) → ~28-30% captain EO
- * - Cunha (10.8%, fixture 5/5) → ~12-15% captain EO
+ * Calibrated against GW14 real-world data (at rank ~350K):
+ * - Haaland (74.2%, fixture 5/5) → ~180% captain EO
+ * - Bruno (18%, fixture 5/5) → ~25-28% captain EO
+ * - Cunha (10.8%, fixture 5/5) → ~12-14% captain EO
  */
 export function calculateCaptainEO(
   ownership: number,
