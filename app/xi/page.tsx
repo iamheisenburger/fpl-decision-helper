@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
@@ -40,7 +41,8 @@ function calculateRAEV(
   settings: {
     xiEoRate: number;
     xiEoThreshold: number;
-  }
+  },
+  considerEO: boolean = true
 ): number {
   const p90 = calculateP90(player.xMins);
 
@@ -51,7 +53,8 @@ function calculateRAEV(
   const nearRankEO = calculateNearRankEO(player.ownership, rank);
 
   // EO shield: 0.1 EV per 25% near-rank EO (applied to ALL players proportionally)
-  const eoShield = (nearRankEO / settings.xiEoThreshold) * settings.xiEoRate;
+  // When considerEO is false, set eoShield to 0 for pure EV optimization
+  const eoShield = considerEO ? (nearRankEO / settings.xiEoThreshold) * settings.xiEoRate : 0;
 
   // Variance penalty: uncertainty increases as player strays from 95 xMins
   const variancePenalty = calculateVariancePenalty(player.xMins);
@@ -84,6 +87,7 @@ const emptyPlayer = {
 export default function XIPage() {
   const settingsData = useQuery(api.userSettings.getSettings);
   const [rank, setRank] = useState("");
+  const [considerEO, setConsiderEO] = useState(true);
   const [players, setPlayers] = useState<any[]>(
     Array(15).fill(null).map(() => ({ ...emptyPlayer }))
   );
@@ -134,7 +138,7 @@ export default function XIPage() {
         return {
           ...p,
           nearRankEO,
-          raev: calculateRAEV(p, currentRank, settings),
+          raev: calculateRAEV(p, currentRank, settings, considerEO),
         };
       });
 
@@ -269,6 +273,35 @@ export default function XIPage() {
                 Top {rankPercentage.toFixed(2)}% of managers
               </p>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* EO Protection Toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Optimization Mode</CardTitle>
+          <CardDescription>
+            Toggle between rank protection and pure EV optimization.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="xi-eo-toggle" className="text-base font-medium">
+                Consider EO Protection
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {considerEO
+                  ? "EO Shield active - protects rank against highly-owned players"
+                  : "Pure EV mode - ignores ownership, maximizes expected points"}
+              </p>
+            </div>
+            <Switch
+              id="xi-eo-toggle"
+              checked={considerEO}
+              onCheckedChange={setConsiderEO}
+            />
           </div>
         </CardContent>
       </Card>

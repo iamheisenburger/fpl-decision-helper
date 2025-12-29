@@ -28,9 +28,6 @@ export default function RootLayout({
                     <a href="/" className="hover:text-primary transition-colors">Dashboard</a>
                     <a href="/captain" className="hover:text-primary transition-colors">Captain</a>
                     <a href="/xi" className="hover:text-primary transition-colors">XI</a>
-                    <a href="/ev-optimizer" className="hover:text-primary transition-colors">EV Optimizer</a>
-                    <a href="/minutes-lab" className="hover:text-primary transition-colors">Minutes Lab</a>
-                    <a href="/settings" className="hover:text-primary transition-colors">Settings</a>
                     <a href="/admin" className="hover:text-primary transition-colors text-sm text-muted-foreground">Admin</a>
                   </div>                </div>
               </div>

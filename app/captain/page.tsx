@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -32,7 +33,8 @@ function calculateVariancePenalty(xMins: number): number {
 function calculateTotalScore(
   player: { ev: number; ev95: number; xMins: number; captainEO: number },
   eoRate: number,
-  eoThreshold: number
+  eoThreshold: number,
+  considerEO: boolean = true
 ): {
   totalScore: number;
   ceilingBonus: number;
@@ -41,7 +43,8 @@ function calculateTotalScore(
 } {
   const p90 = calculateP90(player.xMins);
   const ceilingBonus = (player.ev95 - player.ev) * p90;
-  const eoShield = (player.captainEO / eoThreshold) * eoRate;
+  // When considerEO is false, set eoShield to 0 for pure EV optimization
+  const eoShield = considerEO ? (player.captainEO / eoThreshold) * eoRate : 0;
   const variancePenalty = calculateVariancePenalty(player.xMins);
   return {
     totalScore: player.ev + ceilingBonus + eoShield - variancePenalty,
@@ -64,6 +67,7 @@ export default function CaptainPage() {
   };
 
   const [rank, setRank] = useState("");
+  const [considerEO, setConsiderEO] = useState(true);
 
   const [player1, setPlayer1] = useState({
     name: "",
@@ -135,8 +139,8 @@ export default function CaptainPage() {
     const alt = isP1HighEO ? p2 : p1;
 
     // Calculate Total Scores using threshold settings
-    const highEOResult = calculateTotalScore(highEO, settings.captaincyEoRate, settings.captaincyEoThreshold);
-    const altResult = calculateTotalScore(alt, settings.captaincyEoRate, settings.captaincyEoThreshold);
+    const highEOResult = calculateTotalScore(highEO, settings.captaincyEoRate, settings.captaincyEoThreshold, considerEO);
+    const altResult = calculateTotalScore(alt, settings.captaincyEoRate, settings.captaincyEoThreshold, considerEO);
 
     // Decision: Pick player with highest Total Score (EO protection already baked in)
     const recommendedPlayer = highEOResult.totalScore >= altResult.totalScore ? highEO : alt;
@@ -213,6 +217,35 @@ export default function CaptainPage() {
                 Top {rankPercentage.toFixed(2)}% of managers
               </p>
             )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* EO Protection Toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Optimization Mode</CardTitle>
+          <CardDescription>
+            Toggle between rank protection and pure EV optimization.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="eo-toggle" className="text-base font-medium">
+                Consider EO Protection
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                {considerEO
+                  ? "EO Shield active - protects rank against popular captains"
+                  : "Pure EV mode - ignores ownership, maximizes expected points"}
+              </p>
+            </div>
+            <Switch
+              id="eo-toggle"
+              checked={considerEO}
+              onCheckedChange={setConsiderEO}
+            />
           </div>
         </CardContent>
       </Card>

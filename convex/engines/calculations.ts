@@ -85,6 +85,7 @@ export function calculateTotalScore(
  * Calculate Risk-Adjusted EV (RAEV) for a player in XI selection
  * @param player - Player with EV, EV95, xMins, EO
  * @param settings - User settings for EO rate and threshold
+ * @param considerEO - Whether to include EO shield (default: true)
  * @returns RAEV value
  *
  * Formula: EV + (EV95 - EV) × P90 + (EO/threshold × eoRate) - variancePenalty
@@ -100,7 +101,8 @@ export function calculateRAEV(
   settings: {
     xiEoRate: number;
     xiEoThreshold: number;
-  }
+  },
+  considerEO: boolean = true
 ): number {
   const p90 = calculateP90(player.xMins);
 
@@ -108,7 +110,8 @@ export function calculateRAEV(
   const ceilingBonus = (player.ev95 - player.ev) * p90;
 
   // EO shield: eoRate EV per threshold% EO (applied to ALL players proportionally)
-  const eoShield = (player.eo / settings.xiEoThreshold) * settings.xiEoRate;
+  // When considerEO is false, set eoShield to 0 for pure EV optimization
+  const eoShield = considerEO ? (player.eo / settings.xiEoThreshold) * settings.xiEoRate : 0;
 
   // Variance penalty: uncertainty increases as player strays from 95 xMins
   const variancePenalty = calculateVariancePenalty(player.xMins);
